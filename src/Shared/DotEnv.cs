@@ -15,11 +15,11 @@ public static class DotEnv
         {
             // From tests/QBallTests/bin/Debug/net9.0, navigate to project root
             var current = root;
-            while (current != null && !File.Exists(Path.Combine(current, "ListenfyBot.sln")))
+            while (current is not null && !File.Exists(Path.Combine(current, "ListenfyBot.sln")))
             {
                 current = Directory.GetParent(current)?.FullName;
             }
-            if (current != null)
+            if (current is not null)
             {
                 parentDirectory = current;
             }

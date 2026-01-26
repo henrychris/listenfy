@@ -42,14 +42,13 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         var httpMethod = httpContext.Request.Method;
         var type = ex.GetType().Name;
         var error = ex.Message;
-        var inner =
-            ex.InnerException != null
-                ? $"""
-                    -------------------------------
-                    INNER EXCEPTION
-                    {ex.InnerException}
-                    """
-                : string.Empty;
+        var inner = ex.InnerException is not null
+            ? $"""
+                -------------------------------
+                INNER EXCEPTION
+                {ex.InnerException}
+                """
+            : string.Empty;
 
         var msg = $"""
             Something went wrong.

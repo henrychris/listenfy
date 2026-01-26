@@ -6,7 +6,7 @@ public class RefitLoggingHandler(ILogger<RefitLoggingHandler> logger) : Delegati
     {
         // Log request
         var requestContent = string.Empty;
-        if (request.Content != null)
+        if (request.Content is not null)
         {
             requestContent = await request.Content.ReadAsStringAsync(cancellationToken);
         }

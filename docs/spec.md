@@ -189,7 +189,7 @@ public class StatsService
     public async Task<string> GenerateWeeklySummary(ulong guildId)
     {
         var connections = await _dbContext.UserConnections
-            .Where(c => c.GuildId == guildId && c.SpotifyUserId != null)
+            .Where(c => c.GuildId == guildId && c.SpotifyUserId is not null)
             .ToListAsync();
 
         if (!connections.Any())
@@ -307,7 +307,7 @@ public class WeeklyStatsScheduler : BackgroundService
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var guilds = await dbContext.GuildSettings
-            .Where(g => g.IsEnabled && g.StatsChannelId != null)
+            .Where(g => g.IsEnabled && g.StatsChannelId is not null)
             .ToListAsync();
 
         var now = DateTime.UtcNow;
@@ -400,7 +400,7 @@ public class ConnectCommand : ApplicationCommandModule<SlashCommandContext>
         var existing = await _dbContext.UserConnections
             .FirstOrDefaultAsync(u => u.GuildId == guildId.Value && u.DiscordUserId == userId);
 
-        if (existing != null)
+        if (existing is not null)
         {
             await RespondAsync(InteractionCallback.Message(
                 "✅ You're already connected! Use `/disconnect` to unlink your account.",

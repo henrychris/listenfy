@@ -18,7 +18,7 @@ public abstract class BaseController : ControllerBase
     /// <returns>An IActionResult object based on the type of errors.</returns>
     protected static IActionResult ReturnErrorResponse(List<Error> errors)
     {
-        if (errors == null || errors.Count == 0)
+        if (errors is null || errors.Count == 0)
         {
             throw new ArgumentException("Errors list cannot be null or empty", nameof(errors));
         }
