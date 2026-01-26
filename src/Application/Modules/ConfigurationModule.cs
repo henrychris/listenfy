@@ -118,7 +118,7 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
 
     [SlashCommand(
         "clearchannel",
-        "Clear the channel where weekly statistics are sent. Weekly stats will not be sent if no channel is configured.",
+        "Clear the channel where weekly statistics are sent. Weekly stats will not be sent.",
         DefaultGuildPermissions = Permissions.ManageGuild
     )]
     public async Task ClearChannelAsync()
