@@ -24,9 +24,12 @@ public class SpotifyModule(
 
         if (!guildId.HasValue || Context.Guild is null)
         {
+            logger.LogWarning("Connect command invoked outside of a server");
             await BlockUsageOutsideServer();
             return;
         }
+
+        logger.LogInformation("Connect command started. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
 
         // Check if user already has a COMPLETE connection
         var existingUserConnection = await dbContext
@@ -34,13 +37,20 @@ public class SpotifyModule(
             .FirstOrDefaultAsync(u => u.Guild.DiscordGuildId == guildId.Value && u.DiscordUserId == userId);
         if (existingUserConnection?.SpotifyUser is not null)
         {
+            logger.LogInformation("User already has a complete Spotify connection. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             await RespondAsync(InteractionCallback.Message("✅ You're already connected! Use `/disconnect` to unlink your account."));
             return;
         }
 
         // If incomplete connection exists, delete it so we can start fresh
-        if (existingUserConnection != null)
+        if (existingUserConnection is not null)
         {
+            logger.LogInformation(
+                "Incomplete connection found, deleting. GuildId: {GuildId}, UserId: {UserId}, ConnectionId: {ConnectionId}",
+                guildId.Value,
+                userId,
+                existingUserConnection.Id
+            );
             dbContext.UserConnections.Remove(existingUserConnection);
             await dbContext.SaveChangesAsync();
         }
@@ -49,23 +59,33 @@ public class SpotifyModule(
         var guildSettings = await dbContext.GuildSettings.FirstOrDefaultAsync(g => g.DiscordGuildId == guildId.Value);
         if (guildSettings is null)
         {
+            logger.LogInformation("Creating new GuildSettings during Connect. GuildId: {GuildId}", guildId.Value);
             guildSettings = new GuildSettings { DiscordGuildId = guildId.Value };
             dbContext.GuildSettings.Add(guildSettings);
         }
 
         // Create pending connection
+        var oAuthState = Guid.NewGuid().ToString("N");
         var connection = new UserConnection
         {
             GuildId = guildSettings.Id,
             DiscordUserId = userId,
             ConnectedAt = timeProvider.GetUtcNow().UtcDateTime,
-            OAuthState = Guid.NewGuid().ToString("N"),
+            OAuthState = oAuthState,
         };
 
         dbContext.UserConnections.Add(connection);
         await dbContext.SaveChangesAsync();
+        logger.LogInformation(
+            "Created pending UserConnection. GuildId: {GuildId}, UserId: {UserId}, ConnectionId: {ConnectionId}, OAuthState: {OAuthState}",
+            guildId.Value,
+            userId,
+            connection.Id,
+            oAuthState
+        );
 
         var authUrl = await spotifyService.GetAuthorizationUrl(userId);
+        logger.LogDebug("Generated authorization URL for UserId: {UserId}", userId);
 
         await RespondAsync(
             InteractionCallback.Message(
@@ -82,21 +102,32 @@ public class SpotifyModule(
 
         if (!guildId.HasValue)
         {
+            logger.LogWarning("Disconnect command invoked outside of a server");
             await BlockUsageOutsideServer();
             return;
         }
+
+        logger.LogInformation("Disconnect command started. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
 
         var connection = await dbContext.UserConnections.FirstOrDefaultAsync(u =>
             u.Guild.DiscordGuildId == guildId.Value && u.DiscordUserId == userId
         );
         if (connection is null)
         {
+            logger.LogInformation("No Spotify connection found to disconnect. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             await RespondAsync(InteractionCallback.Message("❌ You don't have a connected Spotify account in this server."));
             return;
         }
 
+        logger.LogInformation(
+            "Disconnecting Spotify account. GuildId: {GuildId}, UserId: {UserId}, ConnectionId: {ConnectionId}",
+            guildId.Value,
+            userId,
+            connection.Id
+        );
         dbContext.UserConnections.Remove(connection);
         await dbContext.SaveChangesAsync();
+        logger.LogInformation("Spotify account successfully disconnected. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
         await RespondAsync(InteractionCallback.Message("✅ Your Spotify account has been disconnected from this server."));
     }
 
@@ -108,32 +139,51 @@ public class SpotifyModule(
 
         if (!guildId.HasValue)
         {
+            logger.LogWarning("Stats command invoked outside of a server");
             await BlockUsageOutsideServer();
             return;
         }
+
+        logger.LogInformation("Stats command started. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
 
         var connection = await dbContext
             .UserConnections.Include(u => u.SpotifyUser)
             .FirstOrDefaultAsync(u => u.Guild.DiscordGuildId == guildId.Value && u.DiscordUserId == userId);
         if (connection is null || connection.SpotifyUser is null)
         {
+            logger.LogInformation(
+                "No Spotify connection found for stats. GuildId: {GuildId}, UserId: {UserId}, ConnectionExists: {ConnectionExists}, SpotifyUserExists: {SpotifyUserExists}",
+                guildId.Value,
+                userId,
+                connection is not null,
+                connection?.SpotifyUser is not null
+            );
             await RespondAsync(InteractionCallback.Message("❌ You haven't connected your Spotify yet! Use `/connect` first."));
             return;
         }
 
+        logger.LogDebug(
+            "Found Spotify connection. GuildId: {GuildId}, UserId: {UserId}, ConnectionId: {ConnectionId}",
+            guildId.Value,
+            userId,
+            connection.Id
+        );
         await RespondAsync(InteractionCallback.DeferredMessage());
 
         try
         {
+            logger.LogDebug("Refreshing tokens if needed. UserId: {UserId}", userId);
             // Refresh tokens if needed before making API calls
             await spotifyService.RefreshTokenIfNeeded(connection);
 
+            logger.LogInformation("Generating stats. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             var stats = await statsService.GenerateUserStats(guildId.Value, userId);
+            logger.LogInformation("Stats generated successfully. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             await Context.Interaction.SendFollowupMessageAsync(stats);
         }
         catch (Exception ex)
         {
-            logger.LogError($"Something went wrong when fetching stats: {ex.Message}", ex);
+            logger.LogError(ex, "Error occurred while fetching stats. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             await Context.Interaction.SendFollowupMessageAsync($"❌ Something went wrong when fetching your stats. Try again?");
         }
     }
