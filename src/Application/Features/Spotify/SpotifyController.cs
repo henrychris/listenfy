@@ -5,7 +5,7 @@ using Listenfy.Shared.Results;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Listenfy.Application.Controllers;
+namespace Listenfy.Application.Features.Spotify;
 
 public class SpotifyController(IMediator mediator) : BaseController
 {
