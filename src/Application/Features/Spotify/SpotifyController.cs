@@ -1,4 +1,3 @@
-using Listenfy.Application.Features.Spotify;
 using Listenfy.Shared.Api;
 using Listenfy.Shared.Api.Responses;
 using Listenfy.Shared.Results;
