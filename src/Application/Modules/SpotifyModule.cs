@@ -2,6 +2,7 @@ using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
 using Listenfy.Domain.Models;
 using Listenfy.Infrastructure.Persistence;
+using Listenfy.Shared;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;

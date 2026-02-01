@@ -1,5 +1,6 @@
-using Listenfy.Domain.Models;
+using Listenfy.Domain;
 using Listenfy.Infrastructure.Persistence;
+using Listenfy.Shared;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -43,24 +44,22 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
                 user.Id,
                 Context.Channel.Id
             );
-
-            // todo: experiment with channel menu for this command
-            var settings = await dbContext.GuildSettings.FirstOrDefaultAsync(g => g.DiscordGuildId == guildId.Value);
-            if (settings is null)
+            var message = new InteractionMessageProperties
             {
-                logger.LogInformation("Creating new GuildSettings for GuildId: {GuildId}", guildId.Value);
-                settings = new GuildSettings { DiscordGuildId = guildId.Value };
-                dbContext.GuildSettings.Add(settings);
-            }
-            else
-            {
-                logger.LogInformation("Updating existing GuildSettings for GuildId: {GuildId}", guildId.Value);
-            }
+                Content = ChannelMenuConstants.PROMPT,
+                Components =
+                [
+                    new ChannelMenuProperties(ChannelMenuConstants.CUSTOM_ID)
+                    {
+                        Placeholder = ChannelMenuConstants.PLACEHOLDER,
+                        MinValues = 1,
+                        MaxValues = 1,
+                        ChannelTypes = [ChannelType.TextGuildChannel],
+                    },
+                ],
+            };
 
-            settings.StatsChannelId = Context.Channel.Id;
-            await dbContext.SaveChangesAsync();
-            logger.LogInformation("Stats channel successfully set to {ChannelId} for GuildId: {GuildId}", Context.Channel.Id, guildId.Value);
-            await RespondAsync(InteractionCallback.Message($"✅ Weekly stats will now be posted in <#{Context.Channel.Id}>"));
+            await RespondAsync(InteractionCallback.Message(message));
         }
         catch (Exception ex)
         {
@@ -160,6 +159,7 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
             settings.StatsChannelId = null;
             await dbContext.SaveChangesAsync();
             logger.LogInformation("Stats channel successfully cleared for GuildId: {GuildId}", guildId.Value);
+
             await RespondAsync(
                 InteractionCallback.Message($"✅ Stats channel has been cleared. Weekly stats will not be sent until you run `/setchannel` again.")
             );
@@ -175,10 +175,5 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
             await RespondAsync(InteractionCallback.Message($"❌ An error occurred while clearing the stats channel. Try again?"));
             throw;
         }
-    }
-
-    private async Task BlockUsageOutsideServer()
-    {
-        await RespondAsync(InteractionCallback.Message("❌ This command can only be used in a server!"));
     }
 }

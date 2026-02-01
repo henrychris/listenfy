@@ -1,7 +1,7 @@
 using NetCord.Rest;
 using NetCord.Services;
 
-namespace Listenfy.Application.Modules;
+namespace Listenfy.Shared;
 
 internal static class InteractionGuards
 {
