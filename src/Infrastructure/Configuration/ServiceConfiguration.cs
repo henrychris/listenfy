@@ -1,4 +1,6 @@
+using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
+using Listenfy.Infrastructure.Services;
 using Listenfy.Infrastructure.Services.Spotify;
 using Listenfy.Shared.Api.Handlers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -14,6 +16,7 @@ internal static class ServiceConfiguration
     public static void RegisterServices(this IServiceCollection services)
     {
         services.AddScoped<ISpotifyService, MockSpotifyService>();
+        services.AddScoped<IStatsService, StatsService>();
         services.AddTransient<RefitLoggingHandler>();
 
         // used for time manipulation and testing
