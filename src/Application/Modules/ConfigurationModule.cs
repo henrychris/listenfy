@@ -96,7 +96,13 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
             if (settings is null)
             {
                 logger.LogInformation("No GuildSettings found for GuildId: {GuildId}", guildId.Value);
-                await RespondAsync(InteractionCallback.Message($"❌ This server has no stats channel set. Use /setchannel"));
+                await RespondAsync(InteractionCallback.Message($"❌ This server has no stats channel set. Use `/setchannel`"));
+                return;
+            }
+
+            if (settings.StatsChannelId is null)
+            {
+                await RespondAsync(InteractionCallback.Message($"❌ This server has no stats channel set. Use `/setchannel`"));
                 return;
             }
 
@@ -141,7 +147,7 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
             if (settings is null)
             {
                 logger.LogInformation("No GuildSettings found for clearing. GuildId: {GuildId}", guildId.Value);
-                await RespondAsync(InteractionCallback.Message($"❌ This server has no stats channel set. Use /setchannel"));
+                await RespondAsync(InteractionCallback.Message($"❌ This server has no stats channel set. Use `/setchannel`"));
                 return;
             }
 
@@ -150,11 +156,12 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
                 guildId.Value,
                 settings.StatsChannelId
             );
+
             settings.StatsChannelId = null;
             await dbContext.SaveChangesAsync();
             logger.LogInformation("Stats channel successfully cleared for GuildId: {GuildId}", guildId.Value);
             await RespondAsync(
-                InteractionCallback.Message($"✅ Stats channel has been cleared. Weekly stats will not be sent until you run /setchannel again.")
+                InteractionCallback.Message($"✅ Stats channel has been cleared. Weekly stats will not be sent until you run `/setchannel` again.")
             );
         }
         catch (Exception ex)
