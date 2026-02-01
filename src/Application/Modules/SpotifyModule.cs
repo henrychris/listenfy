@@ -25,7 +25,7 @@ public class SpotifyModule(
         if (!guildId.HasValue || Context.Guild is null)
         {
             logger.LogWarning("Connect command invoked outside of a server");
-            await BlockUsageOutsideServer();
+            await InteractionGuards.BlockUsageOutsideServerAsync(Context);
             return;
         }
 
@@ -116,7 +116,7 @@ public class SpotifyModule(
         if (!guildId.HasValue)
         {
             logger.LogWarning("Disconnect command invoked outside of a server");
-            await BlockUsageOutsideServer();
+            await InteractionGuards.BlockUsageOutsideServerAsync(Context);
             return;
         }
 
@@ -153,7 +153,7 @@ public class SpotifyModule(
         if (!guildId.HasValue)
         {
             logger.LogWarning("Stats command invoked outside of a server");
-            await BlockUsageOutsideServer();
+            await InteractionGuards.BlockUsageOutsideServerAsync(Context);
             return;
         }
 
@@ -199,10 +199,5 @@ public class SpotifyModule(
             logger.LogError(ex, "Error occurred while fetching stats. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             await Context.Interaction.SendFollowupMessageAsync($"❌ Something went wrong when fetching your stats. Try again?");
         }
-    }
-
-    private async Task BlockUsageOutsideServer()
-    {
-        await RespondAsync(InteractionCallback.Message("❌ This command can only be used in a server!"));
     }
 }

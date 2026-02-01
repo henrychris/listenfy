@@ -33,7 +33,7 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
             if (!guildId.HasValue)
             {
                 logger.LogWarning("SetChannel command invoked outside of a server");
-                await BlockUsageOutsideServer();
+                await InteractionGuards.BlockUsageOutsideServerAsync(Context);
                 return;
             }
 
@@ -86,7 +86,7 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
             if (!guildId.HasValue)
             {
                 logger.LogWarning("GetChannel command invoked outside of a server");
-                await BlockUsageOutsideServer();
+                await InteractionGuards.BlockUsageOutsideServerAsync(Context);
                 return;
             }
 
@@ -137,7 +137,7 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
             if (!guildId.HasValue)
             {
                 logger.LogWarning("ClearChannel command invoked outside of a server");
-                await BlockUsageOutsideServer();
+                await InteractionGuards.BlockUsageOutsideServerAsync(Context);
                 return;
             }
 
