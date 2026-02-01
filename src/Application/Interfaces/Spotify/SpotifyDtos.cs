@@ -1,3 +1,5 @@
+using Refit;
+
 namespace Listenfy.Application.Interfaces.Spotify;
 
 public class ListeningStats
@@ -36,4 +38,16 @@ public class SpotifyProfile
     public string Id { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string? Email { get; set; }
+}
+
+public class SpotifyAccessTokenRequest
+{
+    [AliasAs("grant_type")]
+    public required string GrantType { get; set; }
+
+    [AliasAs("code")]
+    public required string Code { get; set; }
+
+    [AliasAs("redirect_uri")]
+    public required string RedirectUri { get; set; }
 }

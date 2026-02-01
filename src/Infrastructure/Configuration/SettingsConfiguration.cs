@@ -27,6 +27,7 @@ internal static class SettingsConfiguration
         var logger = services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
         ConfigureSettings<DiscordSettings>(services);
         ConfigureSettings<DatabaseSettings>(services);
+        ConfigureSettings<SpotifySettings>(services);
 
         logger.LogInformation("Secrets have been bound to classes.");
     }

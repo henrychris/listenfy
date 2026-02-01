@@ -15,7 +15,7 @@ internal static class ServiceConfiguration
     /// <param name="services"></param>
     public static void RegisterServices(this IServiceCollection services)
     {
-        services.AddScoped<ISpotifyService, MockSpotifyService>();
+        services.AddScoped<ISpotifyService, SpotifyService>();
         services.AddScoped<IStatsService, StatsService>();
         services.AddTransient<RefitLoggingHandler>();
 

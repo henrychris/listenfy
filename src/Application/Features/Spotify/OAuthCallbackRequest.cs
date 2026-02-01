@@ -12,7 +12,7 @@ public class OAuthCallbackRequest : IRequest<Result<OAuthResponse>>
 {
     public required string Code { get; set; }
     public required string State { get; set; }
-    public required string Error { get; set; }
+    public string? Error { get; set; }
     public required string RedirectUri { get; set; }
 }
 
@@ -28,6 +28,21 @@ public class Handler(ApplicationDbContext dbContext, ISpotifyService spotifyServ
 {
     public async Task<Result<OAuthResponse>> Handle(OAuthCallbackRequest request, CancellationToken cancellationToken)
     {
+        if (request.Error is not null)
+        {
+            var connectionToDelete = await dbContext
+                .UserConnections.Include(u => u.Guild)
+                .FirstOrDefaultAsync(u => u.OAuthState == request.State && u.SpotifyUserId == null, cancellationToken: cancellationToken);
+            if (connectionToDelete is not null)
+            {
+                logger.LogWarning("User denied Spotify OAuth access. Error: {Error}, State: {State}", request.Error, request.State);
+                dbContext.UserConnections.Remove(connectionToDelete);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            return Result<OAuthResponse>.Failure(Errors.Spotify.AuthDenied);
+        }
+
         var userConnection = await dbContext
             .UserConnections.Include(u => u.Guild)
             .FirstOrDefaultAsync(u => u.OAuthState == request.State && u.SpotifyUserId == null);
@@ -37,8 +52,19 @@ public class Handler(ApplicationDbContext dbContext, ISpotifyService spotifyServ
             return Result<OAuthResponse>.Failure(Errors.Spotify.AuthTimedOut);
         }
 
-        var tokenResponse = await spotifyService.ExchangeCodeForTokens(request.Code, request.RedirectUri);
-        var profile = await spotifyService.GetCurrentUserProfile(tokenResponse.AccessToken);
+        var tokenResult = await spotifyService.ExchangeCodeForTokens(request.Code, request.RedirectUri);
+        if (tokenResult.IsFailure)
+        {
+            return Result<OAuthResponse>.Failure(tokenResult.Error);
+        }
+        var tokenResponse = tokenResult.Value;
+
+        var profileRes = await spotifyService.GetCurrentUserProfile(tokenResponse.AccessToken);
+        if (profileRes.IsFailure)
+        {
+            return Result<OAuthResponse>.Failure(profileRes.Error);
+        }
+        var profile = profileRes.Value;
 
         var spotifyUser = await dbContext.SpotifyUsers.FirstOrDefaultAsync(s => s.SpotifyUserId == profile.Id, cancellationToken: cancellationToken);
         if (spotifyUser is null)
@@ -93,6 +119,5 @@ public class Validator : AbstractValidator<OAuthCallbackRequest>
     {
         RuleFor(x => x.Code).NotEmpty();
         RuleFor(x => x.State).NotEmpty();
-        RuleFor(x => x.Error).NotEmpty();
     }
 }

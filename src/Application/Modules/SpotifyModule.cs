@@ -84,12 +84,25 @@ public class SpotifyModule(
             oAuthState
         );
 
-        var authUrl = await spotifyService.GetAuthorizationUrl(userId);
-        logger.LogDebug("Generated authorization URL for UserId: {UserId}", userId);
+        var authUrl = spotifyService.GetAuthorizationUrl(oAuthState);
+        logger.LogDebug("Generated authorization URL for UserId: {UserId}. URL: {AuthUrl}", userId, authUrl);
 
         await RespondAsync(
             InteractionCallback.Message(
-                $"Click here to connect your Spotify account: {authUrl}\n\n" + $"_This connection is for **{Context.Guild.Name}** only._"
+                new InteractionMessageProperties
+                {
+                    Embeds =
+                    [
+                        new EmbedProperties
+                        {
+                            Url = authUrl,
+                            Title = $"Click here to connect your Spotify Account.\n\n_Note: This connection is for **{Context.Guild.Name}** only._",
+                            Thumbnail = new EmbedThumbnailProperties(
+                                "https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png"
+                            ),
+                        },
+                    ],
+                }
             )
         );
     }

@@ -48,6 +48,7 @@ try
 
     builder.Services.RegisterServices();
     builder.Services.SetupDiscord();
+    builder.Services.SetupSpotify();
     builder.Services.SetupDatabase<ApplicationDbContext>();
 
     var host = builder.Build();
