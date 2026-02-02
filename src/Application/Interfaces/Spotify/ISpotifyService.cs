@@ -23,4 +23,5 @@ public interface ISpotifyService
     Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken);
     Task<Result<ListeningStats>> GetUserStats(ulong discordUserId, TimeSpan period);
     Task<Result<string>> RefreshTokenIfNeeded(SpotifyUser spotifyUser);
+    Task<Result<SpotifyRecentlyPlayedTracksResponse>> GetRecentlyPlayedTracks(SpotifyUser spotifyUser, int? afterInMilliseconds);
 }

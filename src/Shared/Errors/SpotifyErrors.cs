@@ -16,6 +16,9 @@ public static partial class Errors
         public static Error ProfileFetchFailed =>
             Error.Failure("Spotify.ProfileFetchFailed", "We weren't able to fetch your Spotify profile. Please try again.");
 
+        public static Error RecentlyPlayedTracksFetchFailed =>
+            Error.Failure("Spotify.RecentlyPlayedTracksFetchFailed", "We weren't able to fetch your recently played tracks. Please try again.");
+
         public static Error AuthDenied =>
             Error.Failure("Spotify.AuthDenied", "You denied access to your Spotify account. Please run /connect again when you're ready.");
     }

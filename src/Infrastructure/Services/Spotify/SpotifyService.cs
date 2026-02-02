@@ -134,5 +134,24 @@ public class SpotifyService(
         return Result<string>.Success(spotifyUser.AccessToken);
     }
 
+    public async Task<Result<SpotifyRecentlyPlayedTracksResponse>> GetRecentlyPlayedTracks(SpotifyUser spotifyUser, int? afterInMilliseconds)
+    {
+        var tokenRefreshResult = await RefreshTokenIfNeeded(spotifyUser);
+        if (tokenRefreshResult.IsFailure)
+        {
+            return Result<SpotifyRecentlyPlayedTracksResponse>.Failure(tokenRefreshResult.Error);
+        }
+
+        var response = await spotifyApi.GetRecentlyPlayedTracks(
+            tokenRefreshResult.Value,
+            new SpotifyRecentlyPlayedTracksRequest { Limit = 50, After = afterInMilliseconds }
+        );
+        if (!response.IsSuccessful)
+        {
+            logger.LogError("Failed to fetch recently played tracks. Error: {ex}", response.Error);
+            return Result<SpotifyRecentlyPlayedTracksResponse>.Failure(Errors.Spotify.RecentlyPlayedTracksFetchFailed);
+        }
+
+        return Result<SpotifyRecentlyPlayedTracksResponse>.Success(response.Content);
     }
 }
