@@ -11,5 +11,8 @@ public class SpotifyUser : BaseEntity
     public required DateTime TokenExpiresAt { get; set; }
 
     // Navigation property
+    public SpotifyFetchMetadata? SpotifyFetchMetadata { get; set; }
+    public ICollection<ListeningHistory> ListeningHistories { get; set; } = [];
+    public ICollection<WeeklyStat> WeeklyStats { get; set; } = [];
     public ICollection<UserConnection> UserConnections { get; set; } = [];
 }
