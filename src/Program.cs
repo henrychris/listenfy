@@ -50,21 +50,24 @@ try
     builder.Services.SetupDiscord();
     builder.Services.SetupSpotify();
     builder.Services.SetupDatabase<ApplicationDbContext>();
+    builder.Services.SetupHangfire(environment);
 
-    var host = builder.Build();
-    host.UseSerilogRequestLogging();
+    var app = builder.Build();
+    app.UseSerilogRequestLogging();
 
     // Add Discord commands from modules
-    host.AddModules(typeof(Program).Assembly);
+    app.AddModules(typeof(Program).Assembly);
 
-    await host.ApplyMigrationsAsync<ApplicationDbContext>(environment);
+    await app.ApplyMigrationsAsync<ApplicationDbContext>(environment);
 
-    host.RegisterOpenApiAndScalar();
-    host.UseHttpsRedirection();
-    host.MapControllers();
-    host.UseMiddleware<ExceptionMiddleware>();
+    app.RegisterOpenApiAndScalar();
+    app.UseHttpsRedirection();
+    app.MapControllers();
+    app.UseMiddleware<ExceptionMiddleware>();
+    app.UseHangfireDashboard();
+    app.SetupRecurringJobs();
 
-    await host.RunAsync();
+    await app.RunAsync();
 }
 catch (Exception ex) when (ex is not HostAbortedException && ex.Source != "Microsoft.EntityFrameworkCore.Design") // see https://github.com/dotnet/efcore/issues/29923
 {
