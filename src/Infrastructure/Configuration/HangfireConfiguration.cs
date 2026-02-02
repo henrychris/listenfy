@@ -50,10 +50,27 @@ internal static class HangfireConfiguration
         using var scope = app.Services.CreateScope();
         var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
 
+        // Fetch listening data every 20 minutes
         recurringJobManager.AddOrUpdate<FetchListeningDataJob>(
             "fetch-listening-data",
             job => job.ExecuteAsync(),
-            "*/20 * * * *", // every 20 mins
+            "*/20 * * * *",
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc }
+        );
+
+        // Aggregate weekly stats every Sunday at 00:01 UTC
+        recurringJobManager.AddOrUpdate<AggregateWeeklyStatsJob>(
+            "aggregate-weekly-stats",
+            job => job.ExecuteAsync(),
+            "1 0 * * 0",
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc }
+        );
+
+        // Send weekly stats every Sunday at 09:00 UTC
+        recurringJobManager.AddOrUpdate<SendWeeklyStatsJob>(
+            "send-weekly-stats",
+            job => job.ExecuteAsync(),
+            "0 9 * * 0",
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc }
         );
     }
