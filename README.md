@@ -35,6 +35,12 @@ DatabaseSettings__Host=localhost
 DatabaseSettings__Port=5432
 DatabaseSettings__DatabaseName=ListenfyDb
 
+SpotifySettings__ClientId=xxx
+SpotifySettings__ClientSecret=xxx
+SpotifySettings__ApiBaseUrl=xxx
+SpotifySettings__AccountsBaseUrl=xxx
+SpotifySettings__RedirectUrl=xxx
+
 Serilog__MinimumLevel__Default=Information
 Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Mvc=Warning
 Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Routing=Warning
@@ -76,7 +82,7 @@ dotnet ef database update
 dotnet run
 ```
 
-The application will start at `https://localhost:5001` and `http://localhost:5000`. Endpoints are available at `{URL}/scalar/v1`
+The application will start at `http://localhost:5051`. The solitary callback endpoint is available at `http://localhost:5051/scalar/v1`.
 
 ## Development
 
