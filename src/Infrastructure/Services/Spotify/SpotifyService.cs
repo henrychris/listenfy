@@ -3,6 +3,7 @@ using System.Web;
 using Listenfy.Application.Interfaces.Spotify;
 using Listenfy.Application.Settings;
 using Listenfy.Domain.Models;
+using Listenfy.Infrastructure.Persistence;
 using Listenfy.Shared.Errors;
 using Listenfy.Shared.Results;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,8 @@ public class SpotifyService(
     IOptions<SpotifySettings> options,
     ISpotifyAccountApi spotifyAccountApi,
     ISpotifyApi spotifyApi,
+    ApplicationDbContext dbContext,
+    TimeProvider timeProvider,
     ILogger<SpotifyService> logger
 ) : ISpotifyService
 {
@@ -35,11 +38,6 @@ public class SpotifyService(
         queryParams["scope"] = scopes;
 
         return $"{_spotifySettings.AccountsBaseUrl}/authorize?{queryParams}";
-    }
-
-    public Task<Result<bool>> CompleteAuthorization(string code, ulong discordUserId, ulong guildId)
-    {
-        throw new NotImplementedException();
     }
 
     public async Task<Result<SpotifyTokenResponse>> ExchangeCodeForTokens(string code, string redirectUri)
@@ -82,13 +80,59 @@ public class SpotifyService(
         throw new NotImplementedException();
     }
 
-    public Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken)
+    public async Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken)
     {
-        throw new NotImplementedException();
+        var response = await spotifyAccountApi.RefreshAccessToken(
+            new SpotifyRefreshTokenRequest
+            {
+                GrantType = "refresh_token",
+                RefreshToken = refreshToken,
+                ClientId = _spotifySettings.ClientId,
+            }
+        );
+        if (!response.IsSuccessful)
+        {
+            // todo: if this happens, do we clear the user and force a re-login?
+            logger.LogError("Failed to refresh access token. Error: {ex}", response.Error);
+            return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.TokenRefreshFailed);
+        }
+
+        return Result<SpotifyTokenResponse>.Success(response.Content);
     }
 
-    public Task<Result<MyUnit>> RefreshTokenIfNeeded(UserConnection connection)
+    // <summary>
+    /// Refreshes the access token if it's expired.
+    /// </summary>
+    /// <param name="spotifyUser"></param>
+    /// <returns>Returns the access token if it's still valid, otherwise refreshes it and returns the new token.</returns>
+    public async Task<Result<string>> RefreshTokenIfNeeded(SpotifyUser spotifyUser)
     {
-        throw new NotImplementedException();
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        if (spotifyUser.TokenExpiresAt > now.AddMinutes(1))
+        {
+            logger.LogDebug("Access token is still valid for another minute. Returning as is.");
+            return Result<string>.Success(spotifyUser.AccessToken);
+        }
+
+        var refreshResult = await RefreshAccessToken(spotifyUser.RefreshToken);
+        if (refreshResult.IsFailure)
+        {
+            return Result<string>.Failure(refreshResult.Error);
+        }
+
+        var tokenResponse = refreshResult.Value;
+        spotifyUser.AccessToken = tokenResponse.AccessToken;
+        if (!string.IsNullOrWhiteSpace(tokenResponse.RefreshToken))
+        {
+            spotifyUser.RefreshToken = tokenResponse.RefreshToken;
+        }
+
+        spotifyUser.TokenExpiresAt = now.AddSeconds(tokenResponse.ExpiresIn);
+        await dbContext.SaveChangesAsync();
+
+        logger.LogInformation("Access token refreshed for spotify user: {SpotifyUserId}", spotifyUser.Id);
+        return Result<string>.Success(spotifyUser.AccessToken);
+    }
+
     }
 }

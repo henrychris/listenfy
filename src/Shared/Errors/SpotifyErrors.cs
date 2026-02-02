@@ -10,6 +10,9 @@ public static partial class Errors
         public static Error TokenExchangeFailed =>
             Error.Failure("Spotify.TokenExchangeFailed", "We weren't able to connect your account. Please run `/connect` again.");
 
+        public static Error TokenRefreshFailed =>
+            Error.Failure("Spotify.TokenRefreshFailed", "We weren't able to refresh your access token. Please run `/connect` again.");
+
         public static Error ProfileFetchFailed =>
             Error.Failure("Spotify.ProfileFetchFailed", "We weren't able to fetch your Spotify profile. Please try again.");
 

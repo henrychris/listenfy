@@ -1,3 +1,4 @@
+using Listenfy.Domain.Models;
 using Refit;
 
 namespace Listenfy.Application.Interfaces.Spotify;
@@ -9,19 +10,6 @@ public class ListeningStats
     public List<TopTrack> TopTracks { get; set; } = [];
     public List<TopArtist> TopArtists { get; set; } = [];
     public int TotalMinutesListened { get; set; }
-}
-
-public class TopTrack
-{
-    public string Name { get; set; } = string.Empty;
-    public string Artist { get; set; } = string.Empty;
-    public int PlayCount { get; set; }
-}
-
-public class TopArtist
-{
-    public string Name { get; set; } = string.Empty;
-    public int PlayCount { get; set; }
 }
 
 public class SpotifyTokenResponse
@@ -51,3 +39,16 @@ public class SpotifyAccessTokenRequest
     [AliasAs("redirect_uri")]
     public required string RedirectUri { get; set; }
 }
+
+public class SpotifyRefreshTokenRequest
+{
+    [AliasAs("grant_type")]
+    public required string GrantType { get; set; }
+
+    [AliasAs("refresh_token")]
+    public required string RefreshToken { get; set; }
+
+    [AliasAs("client_id")]
+    public required string ClientId { get; set; }
+}
+

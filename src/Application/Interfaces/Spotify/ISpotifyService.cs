@@ -21,8 +21,6 @@ public interface ISpotifyService
     /// Refreshes an expired access token using the refresh token
     /// </summary>
     Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken);
-
-    Task<Result<bool>> CompleteAuthorization(string code, ulong discordUserId, ulong guildId);
     Task<Result<ListeningStats>> GetUserStats(ulong discordUserId, TimeSpan period);
-    Task<Result<MyUnit>> RefreshTokenIfNeeded(UserConnection connection);
+    Task<Result<string>> RefreshTokenIfNeeded(SpotifyUser spotifyUser);
 }

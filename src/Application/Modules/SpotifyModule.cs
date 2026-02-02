@@ -188,7 +188,7 @@ public class SpotifyModule(
         {
             logger.LogDebug("Refreshing tokens if needed. UserId: {UserId}", userId);
             // Refresh tokens if needed before making API calls
-            await spotifyService.RefreshTokenIfNeeded(connection);
+            await spotifyService.RefreshTokenIfNeeded(connection.SpotifyUser);
 
             logger.LogInformation("Generating stats. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             var stats = await statsService.GenerateUserStats(guildId.Value, userId);
