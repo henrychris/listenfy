@@ -75,11 +75,6 @@ public class SpotifyService(
         return Result<SpotifyProfile>.Success(response.Content);
     }
 
-    public Task<Result<ListeningStats>> GetUserStats(ulong discordUserId, TimeSpan period)
-    {
-        throw new NotImplementedException();
-    }
-
     public async Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken)
     {
         var response = await spotifyAccountApi.RefreshAccessToken(
