@@ -45,7 +45,7 @@ public class FetchListeningDataJob(
             metadata = new SpotifyFetchMetadata
             {
                 SpotifyUserId = user.Id,
-                LastFetchedAt = DateTime.MinValue,
+                LastFetchedAt = timeProvider.GetUtcNow().UtcDateTime,
                 TracksFetchedInLastRun = 0,
             };
 
@@ -54,17 +54,14 @@ public class FetchListeningDataJob(
             logger.LogInformation("Created new SpotifyFetchMetadata for user {SpotifyUserId}", user.SpotifyUserId);
         }
 
-        // Calculate the 'after' timestamp (in Unix milliseconds)
-        int? afterTimestamp = null;
-        if (metadata.LastPlayedAt.HasValue)
-        {
-            // Convert to Unix milliseconds
-            afterTimestamp = (int)new DateTimeOffset(metadata.LastPlayedAt.Value).ToUnixTimeMilliseconds();
-        }
+        // Calculate the 'after' timestamp (in Unix milliseconds) using LastFetchedAt
+        var afterTimestampMilliseconds = new DateTimeOffset(metadata.LastFetchedAt).ToUnixTimeMilliseconds();
+        // Spotify's API accepts epoch time in milliseconds as int
+        int? afterParam = (int)afterTimestampMilliseconds;
 
-        logger.LogDebug("Fetching tracks for user {SpotifyUserId} after timestamp {After}", user.SpotifyUserId, afterTimestamp);
+        logger.LogDebug("Fetching tracks for user {SpotifyUserId} after timestamp {After}", user.SpotifyUserId, afterParam);
 
-        var result = await spotifyService.GetRecentlyPlayedTracks(user, afterTimestamp);
+        var result = await spotifyService.GetRecentlyPlayedTracks(user, afterParam);
         if (result.IsFailure)
         {
             logger.LogError(
@@ -77,11 +74,10 @@ public class FetchListeningDataJob(
 
         var response = result.Value;
         var items = response.Items;
-
         if (items.Count == 0)
         {
             logger.LogDebug("No new tracks for user {SpotifyUserId}", user.SpotifyUserId);
-            metadata.LastFetchedAt = timeProvider.GetUtcNow().UtcDateTime;
+            // Don't update LastFetchedAt if there are no new tracks - keep using the same cursor
             metadata.TracksFetchedInLastRun = 0;
             await dbContext.SaveChangesAsync();
             return;
@@ -105,22 +101,30 @@ public class FetchListeningDataJob(
 
         await dbContext.ListeningHistories.AddRangeAsync(listeningHistories);
 
-        // Update metadata
-        var mostRecentTrack = items.MaxBy(i => DateTime.Parse(i.PlayedAt));
-        if (mostRecentTrack != null)
+        // Update metadata - use Spotify's cursor for pagination
+        // Convert the cursor (Unix milliseconds) back to DateTime
+        if (!string.IsNullOrEmpty(response.Cursors.After))
         {
-            metadata.LastPlayedAt = DateTime.Parse(mostRecentTrack.PlayedAt);
+            var cursorTimestamp = long.Parse(response.Cursors.After);
+            metadata.LastFetchedAt = DateTimeOffset.FromUnixTimeMilliseconds(cursorTimestamp).UtcDateTime;
+            logger.LogDebug("Updated LastFetchedAt to cursor timestamp {Timestamp} ({DateTime})", response.Cursors.After, metadata.LastFetchedAt);
+        }
+        else
+        {
+            // Fallback: use the most recent track's played_at timestamp
+            var mostRecentTrack = items.OrderByDescending(i => DateTime.Parse(i.PlayedAt)).First();
+            metadata.LastFetchedAt = DateTime.Parse(mostRecentTrack.PlayedAt);
+            logger.LogDebug("No cursor in response, using most recent track timestamp: {DateTime}", metadata.LastFetchedAt);
         }
 
-        metadata.LastFetchedAt = timeProvider.GetUtcNow().UtcDateTime;
         metadata.TracksFetchedInLastRun = items.Count;
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation(
-            "Saved {Count} tracks for user {SpotifyUserId}. Last played at: {LastPlayedAt}",
+            "Saved {Count} tracks for user {SpotifyUserId}. Last fetched at: {LastFetchedAt}",
             items.Count,
             user.SpotifyUserId,
-            metadata.LastPlayedAt
+            metadata.LastFetchedAt
         );
     }
 }
