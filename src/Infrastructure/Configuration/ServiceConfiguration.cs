@@ -1,5 +1,5 @@
-using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
+using Listenfy.Application.Interfaces.Stats;
 using Listenfy.Infrastructure.Services;
 using Listenfy.Infrastructure.Services.Spotify;
 using Listenfy.Shared.Api.Handlers;
