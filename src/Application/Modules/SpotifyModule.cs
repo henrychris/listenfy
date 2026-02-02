@@ -1,5 +1,5 @@
-using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
+using Listenfy.Application.Interfaces.Stats;
 using Listenfy.Domain.Models;
 using Listenfy.Infrastructure.Persistence;
 using Listenfy.Shared;
@@ -145,8 +145,8 @@ public class SpotifyModule(
         await RespondAsync(InteractionCallback.Message("✅ Your Spotify account has been disconnected from this server."));
     }
 
-    [SlashCommand("stats", "View your Spotify listening stats")]
-    public async Task StatsAsync()
+    [SlashCommand("personalstats", "View your Spotify listening stats")]
+    public async Task GetPersonalStatsAsync()
     {
         var guildId = Context.Interaction.GuildId;
         var userId = Context.Interaction.User.Id;
@@ -191,14 +191,62 @@ public class SpotifyModule(
             await spotifyService.RefreshTokenIfNeeded(connection.SpotifyUser);
 
             logger.LogInformation("Generating stats. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
-            var stats = await statsService.GenerateUserStats(guildId.Value, userId);
+            var stats = await statsService.GetUserWeeklyStats(guildId.Value, userId);
+            if (stats.IsFailure)
+            {
+                logger.LogInformation(
+                    "No stats available for user. GuildId: {GuildId}, UserId: {UserId}, Reason: {Reason}",
+                    guildId.Value,
+                    userId,
+                    stats.Error.Description
+                );
+                await Context.Interaction.SendFollowupMessageAsync($"❌ {stats.Error.Description}");
+                return;
+            }
+
+            var embed = statsService.BuildUserStatsEmbed(stats.Value);
             logger.LogInformation("Stats generated successfully. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
-            await Context.Interaction.SendFollowupMessageAsync(stats);
+            await Context.Interaction.SendFollowupMessageAsync(new InteractionMessageProperties { Embeds = [embed] });
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error occurred while fetching stats. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
             await Context.Interaction.SendFollowupMessageAsync($"❌ Something went wrong when fetching your stats. Try again?");
+        }
+    }
+
+    [SlashCommand("serverstats", "View the top listeners within the server")]
+    public async Task GetServerStatsAsync()
+    {
+        var guildId = Context.Interaction.GuildId;
+        if (!guildId.HasValue)
+        {
+            logger.LogWarning("Server stats command invoked outside of a server");
+            await InteractionGuards.BlockUsageOutsideServerAsync(Context);
+            return;
+        }
+
+        logger.LogInformation("Server stats command started. GuildId: {GuildId}", guildId.Value);
+        await RespondAsync(InteractionCallback.DeferredMessage());
+
+        try
+        {
+            var stats = await statsService.GetGuildWeeklyStats(guildId.Value);
+            if (stats.IsFailure)
+            {
+                logger.LogInformation("No server stats available. GuildId: {GuildId}, Reason: {Reason}", guildId.Value, stats.Error.Description);
+                await Context.Interaction.SendFollowupMessageAsync($"❌ {stats.Error.Description}");
+                return;
+            }
+
+            var embed = statsService.BuildGuildStatsEmbed(stats.Value);
+            logger.LogInformation("Server stats generated successfully. GuildId: {GuildId}", guildId.Value);
+            await Context.Interaction.SendFollowupMessageAsync(new InteractionMessageProperties { Embeds = [embed] });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error occurred while fetching server stats. GuildId: {GuildId}", guildId.Value);
+            await Context.Interaction.SendFollowupMessageAsync($"❌ Something went wrong when fetching server stats. Try again?");
         }
     }
 }
