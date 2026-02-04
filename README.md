@@ -27,7 +27,7 @@ Copy `.env.example` to `.env` and update with your values:
 
 ```env
 DiscordSettings__BotToken=your_discord_bot_token
-DOTNET_ENVIRONMENT=Development
+ASPNETCORE_ENVIRONMENT=Development
 
 DatabaseSettings__UserId=postgres
 DatabaseSettings__Password=your_database_password
