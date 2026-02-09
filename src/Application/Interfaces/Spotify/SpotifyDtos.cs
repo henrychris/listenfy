@@ -60,10 +60,10 @@ public class SpotifyRecentlyPlayedTracksRequest
     public int Limit { get; set; }
 
     [AliasAs("after")]
-    public int? After { get; set; }
+    public long? After { get; set; }
 
     [AliasAs("before")]
-    public int? Before { get; set; }
+    public long? Before { get; set; }
 }
 
 public class SpotifyRecentlyPlayedTracksResponse

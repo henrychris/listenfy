@@ -129,7 +129,7 @@ public class SpotifyService(
         return Result<string>.Success(spotifyUser.AccessToken);
     }
 
-    public async Task<Result<SpotifyRecentlyPlayedTracksResponse>> GetRecentlyPlayedTracks(SpotifyUser spotifyUser, int? afterInMilliseconds)
+    public async Task<Result<SpotifyRecentlyPlayedTracksResponse>> GetRecentlyPlayedTracks(SpotifyUser spotifyUser, long? afterInMilliseconds = null)
     {
         var tokenRefreshResult = await RefreshTokenIfNeeded(spotifyUser);
         if (tokenRefreshResult.IsFailure)

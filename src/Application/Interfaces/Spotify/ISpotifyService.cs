@@ -22,5 +22,5 @@ public interface ISpotifyService
     /// </summary>
     Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken);
     Task<Result<string>> RefreshTokenIfNeeded(SpotifyUser spotifyUser);
-    Task<Result<SpotifyRecentlyPlayedTracksResponse>> GetRecentlyPlayedTracks(SpotifyUser spotifyUser, int? afterInMilliseconds);
+    Task<Result<SpotifyRecentlyPlayedTracksResponse>> GetRecentlyPlayedTracks(SpotifyUser spotifyUser, long? afterInMilliseconds = null);
 }

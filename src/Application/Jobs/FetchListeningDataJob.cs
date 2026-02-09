@@ -38,30 +38,87 @@ public class FetchListeningDataJob(
     {
         logger.LogDebug("Processing user {SpotifyUserId}", user.SpotifyUserId);
 
-        // Get or create fetch metadata
         var metadata = user.SpotifyFetchMetadata;
         if (metadata is null)
         {
-            metadata = new SpotifyFetchMetadata
+            await ProcessFirstTimeFetch(user);
+        }
+        else
+        {
+            await ProcessSubsequentFetch(user, metadata);
+        }
+    }
+
+    private async Task ProcessFirstTimeFetch(SpotifyUser user)
+    {
+        logger.LogInformation("First-time fetch for user {SpotifyUserId}", user.SpotifyUserId);
+
+        var result = await spotifyService.GetRecentlyPlayedTracks(user);
+        if (result.IsFailure)
+        {
+            logger.LogError(
+                "Failed to fetch recently played tracks for user {SpotifyUserId}. Error: {Error}",
+                user.SpotifyUserId,
+                result.Error.Description
+            );
+            return;
+        }
+
+        var response = result.Value;
+        var items = response.Items;
+        if (items.Count == 0)
+        {
+            logger.LogDebug("No tracks available for first-time fetch for user {SpotifyUserId}", user.SpotifyUserId);
+
+            var metadata = new SpotifyFetchMetadata
             {
                 SpotifyUserId = user.Id,
                 LastFetchedAt = timeProvider.GetUtcNow().UtcDateTime,
                 TracksFetchedInLastRun = 0,
             };
-
             dbContext.SpotifyFetchMetadata.Add(metadata);
             await dbContext.SaveChangesAsync();
-            logger.LogInformation("Created new SpotifyFetchMetadata for user {SpotifyUserId}", user.SpotifyUserId);
+            return;
         }
 
-        // Calculate the 'after' timestamp (in Unix milliseconds) using LastFetchedAt
+        logger.LogInformation("Found {Count} tracks for first-time fetch for user {SpotifyUserId}", items.Count, user.SpotifyUserId);
+        var listeningHistories = items.Select(item => new ListeningHistory
+        {
+            SpotifyUserId = user.Id,
+            TrackId = item.Track.Id,
+            TrackName = item.Track.Name,
+            ArtistName = string.Join(", ", item.Track.Artists.Select(a => a.Name)),
+            AlbumName = item.Track.Album.Name,
+            DurationMs = item.Track.DurationMs,
+            PlayedAt = DateTime.Parse(item.PlayedAt),
+            ContextType = item.Context?.Type,
+            ContextUri = item.Context?.Uri,
+        });
+        await dbContext.ListeningHistories.AddRangeAsync(listeningHistories);
+
+        var newMetadata = new SpotifyFetchMetadata
+        {
+            SpotifyUserId = user.Id,
+            LastFetchedAt = GetLastFetchedTimestamp(response, items),
+            TracksFetchedInLastRun = items.Count,
+        };
+        dbContext.SpotifyFetchMetadata.Add(newMetadata);
+
+        await dbContext.SaveChangesAsync();
+        logger.LogInformation(
+            "Saved {Count} tracks for user {SpotifyUserId}. Last fetched at: {LastFetchedAt}",
+            items.Count,
+            user.SpotifyUserId,
+            newMetadata.LastFetchedAt
+        );
+    }
+
+    private async Task ProcessSubsequentFetch(SpotifyUser user, SpotifyFetchMetadata metadata)
+    {
         var afterTimestampMilliseconds = new DateTimeOffset(metadata.LastFetchedAt).ToUnixTimeMilliseconds();
-        // Spotify's API accepts epoch time in milliseconds as int
-        int? afterParam = (int)afterTimestampMilliseconds;
+        logger.LogDebug("Fetching tracks for user {SpotifyUserId} after timestamp {After}", user.SpotifyUserId, afterTimestampMilliseconds);
 
-        logger.LogDebug("Fetching tracks for user {SpotifyUserId} after timestamp {After}", user.SpotifyUserId, afterParam);
-
-        var result = await spotifyService.GetRecentlyPlayedTracks(user, afterParam);
+        var result = await spotifyService.GetRecentlyPlayedTracks(user, afterTimestampMilliseconds);
         if (result.IsFailure)
         {
             logger.LogError(
@@ -101,22 +158,7 @@ public class FetchListeningDataJob(
 
         await dbContext.ListeningHistories.AddRangeAsync(listeningHistories);
 
-        // Update metadata - use Spotify's cursor for pagination
-        // Convert the cursor (Unix milliseconds) back to DateTime
-        if (!string.IsNullOrEmpty(response.Cursors.After))
-        {
-            var cursorTimestamp = long.Parse(response.Cursors.After);
-            metadata.LastFetchedAt = DateTimeOffset.FromUnixTimeMilliseconds(cursorTimestamp).UtcDateTime;
-            logger.LogDebug("Updated LastFetchedAt to cursor timestamp {Timestamp} ({DateTime})", response.Cursors.After, metadata.LastFetchedAt);
-        }
-        else
-        {
-            // Fallback: use the most recent track's played_at timestamp
-            var mostRecentTrack = items.OrderByDescending(i => DateTime.Parse(i.PlayedAt)).First();
-            metadata.LastFetchedAt = DateTime.Parse(mostRecentTrack.PlayedAt);
-            logger.LogDebug("No cursor in response, using most recent track timestamp: {DateTime}", metadata.LastFetchedAt);
-        }
-
+        metadata.LastFetchedAt = GetLastFetchedTimestamp(response, items);
         metadata.TracksFetchedInLastRun = items.Count;
         await dbContext.SaveChangesAsync();
 
@@ -126,5 +168,21 @@ public class FetchListeningDataJob(
             user.SpotifyUserId,
             metadata.LastFetchedAt
         );
+    }
+
+    private DateTime GetLastFetchedTimestamp(SpotifyRecentlyPlayedTracksResponse response, List<SpotifyRecentlyPlayedItem> items)
+    {
+        if (!string.IsNullOrEmpty(response.Cursors.After))
+        {
+            var cursorTimestamp = long.Parse(response.Cursors.After);
+            var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(cursorTimestamp).UtcDateTime;
+            logger.LogDebug("Using cursor timestamp {Timestamp} ({DateTime})", response.Cursors.After, timestamp);
+            return timestamp;
+        }
+
+        var mostRecentTrack = items.OrderByDescending(i => DateTime.Parse(i.PlayedAt)).First();
+        var fallbackTimestamp = DateTime.Parse(mostRecentTrack.PlayedAt);
+        logger.LogDebug("No cursor in response, using most recent track timestamp: {DateTime}", fallbackTimestamp);
+        return fallbackTimestamp;
     }
 }

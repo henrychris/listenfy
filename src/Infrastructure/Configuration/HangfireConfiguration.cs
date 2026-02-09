@@ -2,6 +2,7 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Listenfy.Application.Jobs;
 using Listenfy.Application.Settings;
+using Listenfy.Domain;
 using Listenfy.Shared;
 using Microsoft.Extensions.Options;
 
@@ -50,11 +51,10 @@ internal static class HangfireConfiguration
         using var scope = app.Services.CreateScope();
         var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
 
-        // Fetch listening data every 20 minutes
         recurringJobManager.AddOrUpdate<FetchListeningDataJob>(
             "fetch-listening-data",
             job => job.ExecuteAsync(),
-            "*/20 * * * *",
+            $"*/{StatMenuConstants.FETCH_DATA_JOB_INTERVAL_IN_MINUTES} * * * *",
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc }
         );
 

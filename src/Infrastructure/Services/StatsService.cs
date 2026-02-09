@@ -22,7 +22,7 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
         var userConnection = await dbContext
             .UserConnections.Include(uc => uc.SpotifyUser!)
             .FirstOrDefaultAsync(uc => uc.Guild.DiscordGuildId == discordGuildId && uc.DiscordUserId == discordUserId && uc.SpotifyUser != null);
-        if (userConnection?.SpotifyUser == null)
+        if (userConnection?.SpotifyUser is null)
         {
             logger.LogDebug("No Spotify connection found for user {UserId} in guild {GuildId}", discordUserId, discordGuildId);
             return Result<UserWeeklyStatsDto>.Failure(Errors.Stats.NotConnected);

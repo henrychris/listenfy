@@ -1,3 +1,4 @@
+using Listenfy.Domain;
 using Listenfy.Shared.Results;
 
 namespace Listenfy.Shared.Errors;
@@ -33,6 +34,9 @@ public static partial class Errors
             Error.NotFound("Stats.NotConnected", "You haven't connected your Spotify account yet. Use `/connect` first.");
 
         public static Error NoStatsAvailable =>
-            Error.NotFound("Stats.NoStatsAvailable", "No stats available yet. Stats are generated weekly on Sundays.");
+            Error.NotFound(
+                "Stats.NoStatsAvailable",
+                $"No stats available yet. Try again in {StatMenuConstants.FETCH_DATA_JOB_INTERVAL_IN_MINUTES} minutes."
+            );
     }
 }

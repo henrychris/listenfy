@@ -5,11 +5,11 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "C#: Listenfy [https]",
+			"name": "C#: Listenfy [http]",
 			"type": "dotnet",
 			"request": "launch",
 			"projectPath": "${workspaceFolder}/src/Listenfy.csproj",
-			"launchConfigurationId": "TargetFramework=;https"
+			"launchConfigurationId": "TargetFramework=;http"
 		}
 	]
 }
