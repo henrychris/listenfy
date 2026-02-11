@@ -77,13 +77,17 @@ public class SpotifyService(
 
     public async Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken)
     {
+        var spotifyCredentials = $"{_spotifySettings.ClientId}:{_spotifySettings.ClientSecret}";
+        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes(spotifyCredentials));
+
         var response = await spotifyAccountApi.RefreshAccessToken(
             new SpotifyRefreshTokenRequest
             {
                 GrantType = "refresh_token",
                 RefreshToken = refreshToken,
                 ClientId = _spotifySettings.ClientId,
-            }
+            },
+            token
         );
         if (!response.IsSuccessful)
         {
@@ -115,13 +119,9 @@ public class SpotifyService(
             return Result<string>.Failure(refreshResult.Error);
         }
 
+        // spotify dont send a new refresh token. the one gotten on first auth remains unchanged
         var tokenResponse = refreshResult.Value;
         spotifyUser.AccessToken = tokenResponse.AccessToken;
-        if (!string.IsNullOrWhiteSpace(tokenResponse.RefreshToken))
-        {
-            spotifyUser.RefreshToken = tokenResponse.RefreshToken;
-        }
-
         spotifyUser.TokenExpiresAt = now.AddSeconds(tokenResponse.ExpiresIn);
         await dbContext.SaveChangesAsync();
 
