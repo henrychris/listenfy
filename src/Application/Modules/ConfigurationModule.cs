@@ -23,6 +23,44 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
         return "Ping!";
     }
 
+    [SlashCommand("help", "Get help with Listenfy commands")]
+    public static InteractionMessageProperties Help()
+    {
+        var embeds = new[]
+        {
+            new EmbedProperties
+            {
+                Title = "🎵 Listenfy Help",
+                Description = "Here's what you can do with Listenfy!",
+                Color = new Color(30, 215, 96), // Spotify Green
+                Fields =
+                [
+                    new EmbedFieldProperties
+                    {
+                        Name = "🚀 First Time Setup",
+                        Value =
+                            "1. Use `/connect` to link your Spotify account\n2. A server admin should use `/setchannel` to choose where weekly stats are posted\n3. Come back anytime to check `/personalstats` or `/serverstats`",
+                    },
+                    new EmbedFieldProperties
+                    {
+                        Name = "🎧 Personal Commands",
+                        Value =
+                            "`/connect` - Link your Spotify account to this server\n`/disconnect` - Unlink your Spotify account from this server\n`/personalstats` - View your weekly listening statistics",
+                    },
+                    new EmbedFieldProperties
+                    {
+                        Name = "🏆 Server Commands",
+                        Value =
+                            "`/serverstats` - See the top listeners in this server\n`/setchannel` - (Admin) Set where weekly stats are posted\n`/getchannel` - (Admin) See the current stats channel\n`/clearchannel` - (Admin) Remove the stats channel",
+                    },
+                    new EmbedFieldProperties { Name = "❓ Other", Value = "`/ping` - Pong!\n`/pong` - Ping!" },
+                ],
+            },
+        };
+
+        return new InteractionMessageProperties { Embeds = embeds };
+    }
+
     [SlashCommand("setchannel", "Invoke this in a channel to have weekly stats published here", DefaultGuildPermissions = Permissions.ManageGuild)]
     public async Task SetChannelAsync()
     {
