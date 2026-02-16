@@ -11,6 +11,7 @@ public class UserWeeklyStatsDto
     public required int TotalMinutesListened { get; set; }
     public required int TotalTracksPlayed { get; set; }
     public required int UniqueTracksPlayed { get; set; }
+    public required bool IncludesEarliestData { get; set; }
 }
 
 public class GuildWeeklyStatsDto

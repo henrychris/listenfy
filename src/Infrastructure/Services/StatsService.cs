@@ -22,8 +22,6 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
     public async Task<Result<UserWeeklyStatsDto>> GetUserWeeklyStats(ulong discordGuildId, ulong discordUserId)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var (weekIdentifier, weekStart, weekEnd) = Utilities.CalculateCompletedWeek(now);
-
         var userConnection = await dbContext
             .UserConnections.Include(uc => uc.SpotifyUser!)
             .FirstOrDefaultAsync(uc => uc.Guild.DiscordGuildId == discordGuildId && uc.DiscordUserId == discordUserId && uc.SpotifyUser != null);
@@ -34,30 +32,21 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
         }
 
         var spotifyUser = userConnection.SpotifyUser;
+        logger.LogInformation("Computing stats for user {UserId} in guild {GuildId} for last 7 days.", discordUserId, discordGuildId);
 
-        // Check if precomputed stats exist - query directly from WeeklyStats to ensure JSON columns load
-        var weeklyStats = await dbContext.WeeklyStats.FirstOrDefaultAsync(ws =>
-            ws.SpotifyUserId == spotifyUser.Id && ws.WeekIdentifier == weekIdentifier
-        );
+        var endDate = now;
+        var startDate = now.AddDays(-7);
+
+        // Check if we have any listening history older than the requested start date
+        var hasOlderData = await dbContext.ListeningHistories.AnyAsync(lh => lh.SpotifyUserId == spotifyUser.Id && lh.PlayedAt < startDate);
+
+        var weeklyStats = await ComputeUserWeeklyStats(spotifyUser, startDate, endDate);
         if (weeklyStats is null)
         {
-            logger.LogInformation(
-                "No precomputed stats found for user {UserId} in guild {GuildId}, week {WeekId}. Computing on the fly.",
-                discordUserId,
-                discordGuildId,
-                weekIdentifier
-            );
-
-            // Compute stats on the fly
-            weeklyStats = await ComputeUserWeeklyStats(spotifyUser, weekIdentifier, weekStart, weekEnd);
-            if (weeklyStats is null)
-            {
-                return Result<UserWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable(_spotifySettings.FetchDataJobIntervalInMinutes));
-            }
-
-            logger.LogInformation("Computed weekly stats on the fly for user {UserId} (not saving to DB)", discordUserId);
+            return Result<UserWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable(_spotifySettings.FetchDataJobIntervalInMinutes));
         }
 
+        logger.LogInformation("Computed stats for user {UserId} from {StartDate} to {EndDate}", discordUserId, startDate, endDate);
         return Result<UserWeeklyStatsDto>.Success(
             new UserWeeklyStatsDto
             {
@@ -77,32 +66,47 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
                 TotalMinutesListened = weeklyStats.TotalMinutesListened,
                 TotalTracksPlayed = weeklyStats.TotalTracksPlayed,
                 UniqueTracksPlayed = weeklyStats.UniqueTracksPlayed,
+                IncludesEarliestData = !hasOlderData,
             }
         );
     }
 
-    private async Task<WeeklyStat?> ComputeUserWeeklyStats(SpotifyUser spotifyUser, string weekIdentifier, DateTime weekStart, DateTime weekEnd)
+    private async Task<WeeklyStat?> ComputeUserWeeklyStats(SpotifyUser spotifyUser, DateTime startDate, DateTime endDate)
     {
         var listeningHistory = await dbContext
-            .ListeningHistories.Where(lh => lh.SpotifyUserId == spotifyUser.Id && lh.PlayedAt >= weekStart && lh.PlayedAt <= weekEnd)
+            .ListeningHistories.Where(lh => lh.SpotifyUserId == spotifyUser.Id && lh.PlayedAt >= startDate && lh.PlayedAt <= endDate)
+            .OrderBy(lh => lh.PlayedAt)
             .ToListAsync();
         if (listeningHistory.Count == 0)
         {
             logger.LogInformation(
-                "No listening history for user {SpotifyUserId} in week {WeekIdentifier}.",
+                "No listening history for user {SpotifyUserId} between {StartDate} and {EndDate}.",
                 spotifyUser.SpotifyUserId,
-                weekIdentifier
+                startDate,
+                endDate
             );
             return null;
         }
+
+        // Use actual first and last track dates from the data
+        var actualStartDate = listeningHistory.First().PlayedAt;
+        var actualEndDate = listeningHistory.Last().PlayedAt;
+        var weekIdentifier = $"Last 7 Days";
+
+        logger.LogInformation(
+            "Computing stats for user {SpotifyUserId}. Actual data range: {ActualStart} to {ActualEnd}",
+            spotifyUser.SpotifyUserId,
+            actualStartDate,
+            actualEndDate
+        );
 
         return Utilities.CalculateWeeklyStat(
             listeningHistory,
             spotifyUser.Id,
             timeProvider.GetUtcNow().UtcDateTime,
             weekIdentifier,
-            weekStart,
-            weekEnd
+            actualStartDate,
+            actualEndDate
         );
     }
 
@@ -146,6 +150,7 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
                     TotalMinutesListened = stats.TotalMinutesListened,
                     TotalTracksPlayed = stats.TotalTracksPlayed,
                     UniqueTracksPlayed = stats.UniqueTracksPlayed,
+                    IncludesEarliestData = false, // Guild stats use precomputed weekly data
                 };
             })
             .OrderByDescending(u => u.TotalMinutesListened)
@@ -173,7 +178,6 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
     public EmbedProperties BuildUserStatsEmbed(UserWeeklyStatsDto stats)
     {
         var description = new StringBuilder();
-        description.AppendLine($"📊 **Your Weekly Stats - {stats.WeekIdentifier}**\n");
         description.AppendLine($"*{stats.WeekStartDate:MMM dd} - {stats.WeekEndDate:MMM dd, yyyy}*\n");
 
         description.AppendLine($"🎵 **{stats.TotalTracksPlayed}** tracks played ({stats.UniqueTracksPlayed} unique)");
@@ -201,9 +205,20 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
             }
         }
 
+        // Add a note about data availability
+        description.AppendLine();
+        if (stats.IncludesEarliestData)
+        {
+            description.AppendLine("*\\* This includes all your available listening history since connecting.*");
+        }
+        else
+        {
+            description.AppendLine("*\\* Showing last 7 days. More history is available.*");
+        }
+
         return new EmbedProperties
         {
-            Title = "🎧 Your Weekly Music Stats",
+            Title = $"📊 **Your Listening Stats - {stats.WeekIdentifier}**",
             Description = description.ToString(),
             Color = new Color(30, 215, 96), // Spotify green
             Timestamp = timeProvider.GetUtcNow().DateTime,
