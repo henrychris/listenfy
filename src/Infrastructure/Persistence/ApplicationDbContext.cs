@@ -40,8 +40,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         // one fetch metadata entry per user
         builder.Entity<SpotifyFetchMetadata>().HasIndex(f => f.SpotifyUserId).IsUnique();
 
-        builder.Entity<WeeklyStat>().ComplexProperty(c => c.TopTracks, d => d.ToJson());
-        builder.Entity<WeeklyStat>().ComplexProperty(c => c.TopArtists, d => d.ToJson());
+        // Configure JSON columns for WeeklyStat collections
+        builder.Entity<WeeklyStat>().OwnsMany(w => w.TopTracks, tb => tb.ToJson());
+        builder.Entity<WeeklyStat>().OwnsMany(w => w.TopArtists, ab => ab.ToJson());
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken token = default)
