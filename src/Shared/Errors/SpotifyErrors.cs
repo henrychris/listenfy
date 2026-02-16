@@ -6,6 +6,12 @@ public static partial class Errors
 {
     public class Spotify
     {
+        public static Error NotAllowlisted =>
+            Error.Forbidden(
+                "Spotify.NotAllowlisted",
+                "You are not allowed to use this app yet. Please contact the developer to be added to the Spotify allowlist."
+            );
+
         public static Error AuthTimedOut => Error.Failure("Spotify.AuthTimedOut", "Invalid or expired OAuth state. Please run `/connect` again.");
 
         public static Error TokenExchangeFailed =>
