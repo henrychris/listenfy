@@ -128,6 +128,6 @@ Contributions are welcome! Whether it's bug fixes, new features, or documentatio
 
 ### Guidelines
 
-- **Pull Requests**: PRs are squash merged, so ensure the PR title clearly describes the changes. The description should provide detailed context about what's being added or modified.
+- **Pull Requests**: PRs are squash merged, so ensure the PR title clearly describes the changes. The description should provide detailed context about what's being added or modified. Branch off dev when building features and use `master` as the base/target branch.
 - **Commits**: Each commit within a PR should have an informative title. Please squash trivial commits before submitting.
 - **Code Style**: Run `dotnet csharpier .` before committing to ensure code is properly formatted. The CI will check this automatically.
