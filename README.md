@@ -97,7 +97,6 @@ dotnet run
 
 The bot will connect to Discord and be ready to use. Add the bot to your server using the OAuth2 URL with appropriate permissions:
 
-- Read Messages
 - Send Messages
 - Send Messages In Threads
 - Embed Links
