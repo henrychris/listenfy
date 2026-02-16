@@ -25,29 +25,8 @@ Listenfy integrates Spotify with Discord to provide members with personalized li
 
 Copy `.env.example` to `.env` and update with your values:
 
-```env
-DiscordSettings__BotToken=your_discord_bot_token
-ASPNETCORE_ENVIRONMENT=Development
-
-DatabaseSettings__UserId=postgres
-DatabaseSettings__Password=your_database_password
-DatabaseSettings__Host=localhost
-DatabaseSettings__Port=5432
-DatabaseSettings__DatabaseName=ListenfyDb
-
-SpotifySettings__ClientId=xxx
-SpotifySettings__ClientSecret=xxx
-SpotifySettings__ApiBaseUrl=xxx
-SpotifySettings__AccountsBaseUrl=xxx
-SpotifySettings__RedirectUrl=xxx
-SpotifySettings__FetchDataJobIntervalInMinutes=5
-
-Serilog__MinimumLevel__Default=Information
-Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Mvc=Warning
-Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Routing=Warning
-Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Hosting=Warning
-Serilog__MinimumLevel__Override__System.Net.Http.HttpClient.Refit=Warning
-Serilog__MinimumLevel__Override__Microsoft.AspNetCore.Cors=Fatal
+```bash
+cp .env.example .env
 ```
 
 ### Installation
