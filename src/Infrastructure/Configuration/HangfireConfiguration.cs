@@ -50,11 +50,12 @@ internal static class HangfireConfiguration
 
         using var scope = app.Services.CreateScope();
         var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+        var spotifySettings = scope.ServiceProvider.GetRequiredService<IOptionsSnapshot<SpotifySettings>>()?.Value!;
 
         recurringJobManager.AddOrUpdate<FetchListeningDataJob>(
             "fetch-listening-data",
             job => job.ExecuteAsync(),
-            $"*/{StatMenuConstants.FETCH_DATA_JOB_INTERVAL_IN_MINUTES} * * * *",
+            $"*/{spotifySettings.FetchDataJobIntervalInMinutes} * * * *",
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc }
         );
 

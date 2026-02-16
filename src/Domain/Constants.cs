@@ -11,5 +11,4 @@ internal static class StatMenuConstants
 {
     public const int TOP_ITEMS_TO_SHOW = 5;
     public const int TOP_USERS_TO_SHOW = 5;
-    public const int FETCH_DATA_JOB_INTERVAL_IN_MINUTES = 20;
 }

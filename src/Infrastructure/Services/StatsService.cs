@@ -1,5 +1,6 @@
 using System.Text;
 using Listenfy.Application.Interfaces.Stats;
+using Listenfy.Application.Settings;
 using Listenfy.Domain;
 using Listenfy.Domain.Models;
 using Listenfy.Infrastructure.Persistence;
@@ -7,13 +8,17 @@ using Listenfy.Shared;
 using Listenfy.Shared.Errors;
 using Listenfy.Shared.Results;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
 
 namespace Listenfy.Infrastructure.Services;
 
-public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvider, ILogger<StatsService> logger) : IStatsService
+public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvider, IOptions<SpotifySettings> options, ILogger<StatsService> logger)
+    : IStatsService
 {
+    private readonly SpotifySettings _spotifySettings = options.Value;
+
     public async Task<Result<UserWeeklyStatsDto>> GetUserWeeklyStats(ulong discordGuildId, ulong discordUserId)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -47,7 +52,7 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
             weeklyStats = await ComputeUserWeeklyStats(spotifyUser, weekIdentifier, weekStart, weekEnd);
             if (weeklyStats is null)
             {
-                return Result<UserWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable);
+                return Result<UserWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable(_spotifySettings.FetchDataJobIntervalInMinutes));
             }
 
             logger.LogInformation("Computed weekly stats on the fly for user {UserId} (not saving to DB)", discordUserId);
@@ -150,7 +155,7 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
         if (usersWithStats.Count == 0)
         {
             logger.LogDebug("No weekly stats found for guild {GuildId}, week {WeekId}", discordGuildId, weekIdentifier);
-            return Result<GuildWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable);
+            return Result<GuildWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable(_spotifySettings.FetchDataJobIntervalInMinutes));
         }
 
         var firstUser = usersWithStats.First();

@@ -18,4 +18,7 @@ public class SpotifySettings
 
     [Required(AllowEmptyStrings = false)]
     public string RedirectUrl { get; set; } = null!;
+
+    [Required(AllowEmptyStrings = false), Range(1, 60)]
+    public int FetchDataJobIntervalInMinutes { get; set; }
 }

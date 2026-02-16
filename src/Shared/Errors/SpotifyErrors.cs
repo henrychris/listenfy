@@ -33,10 +33,9 @@ public static partial class Errors
         public static Error NotConnected =>
             Error.NotFound("Stats.NotConnected", "You haven't connected your Spotify account yet. Use `/connect` first.");
 
-        public static Error NoStatsAvailable =>
-            Error.NotFound(
-                "Stats.NoStatsAvailable",
-                $"No stats available yet. Try again in {StatMenuConstants.FETCH_DATA_JOB_INTERVAL_IN_MINUTES} minutes."
-            );
+        public static Error NoStatsAvailable(int minutes)
+        {
+            return Error.NotFound("Stats.NoStatsAvailable", $"No stats available yet. Try again in {minutes} minute{(minutes == 1 ? "" : "s")}.");
+        }
     }
 }
