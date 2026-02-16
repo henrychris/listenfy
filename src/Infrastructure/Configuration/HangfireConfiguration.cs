@@ -2,7 +2,6 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Listenfy.Application.Jobs;
 using Listenfy.Application.Settings;
-using Listenfy.Domain;
 using Listenfy.Shared;
 using Microsoft.Extensions.Options;
 
