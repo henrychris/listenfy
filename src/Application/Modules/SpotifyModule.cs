@@ -4,6 +4,7 @@ using Listenfy.Domain.Models;
 using Listenfy.Infrastructure.Persistence;
 using Listenfy.Shared;
 using Microsoft.EntityFrameworkCore;
+using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
@@ -39,7 +40,15 @@ public class SpotifyModule(
         if (existingUserConnection?.SpotifyUser is not null)
         {
             logger.LogInformation("User already has a complete Spotify connection. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
-            await RespondAsync(InteractionCallback.Message("✅ You're already connected! Use `/disconnect` to unlink your account."));
+            await RespondAsync(
+                InteractionCallback.Message(
+                    new InteractionMessageProperties
+                    {
+                        Content = "✅ You're already connected! Use `/disconnect` to unlink your account.",
+                        Flags = MessageFlags.Ephemeral,
+                    }
+                )
+            );
             return;
         }
 
@@ -114,6 +123,7 @@ public class SpotifyModule(
                             ),
                         },
                     ],
+                    Flags = MessageFlags.Ephemeral,
                 }
             )
         );
@@ -140,7 +150,15 @@ public class SpotifyModule(
         if (connection is null)
         {
             logger.LogInformation("No Spotify connection found to disconnect. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
-            await RespondAsync(InteractionCallback.Message("❌ You don't have a connected Spotify account in this server."));
+            await RespondAsync(
+                InteractionCallback.Message(
+                    new InteractionMessageProperties
+                    {
+                        Content = "❌ You don't have a connected Spotify account in this server.",
+                        Flags = MessageFlags.Ephemeral,
+                    }
+                )
+            );
             return;
         }
 
@@ -154,7 +172,15 @@ public class SpotifyModule(
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation("Spotify account successfully disconnected. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
-        await RespondAsync(InteractionCallback.Message("✅ Your Spotify account has been disconnected from this server."));
+        await RespondAsync(
+            InteractionCallback.Message(
+                new InteractionMessageProperties
+                {
+                    Content = "✅ Your Spotify account has been disconnected from this server.",
+                    Flags = MessageFlags.Ephemeral,
+                }
+            )
+        );
     }
 
     [SlashCommand("personalstats", "View your Spotify listening stats")]
