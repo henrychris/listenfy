@@ -176,7 +176,7 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
         if (usersWithStats.Count == 0)
         {
             logger.LogDebug("No weekly stats found for guild {GuildId}, week {WeekId}", discordGuildId, weekIdentifier);
-            return Result<GuildWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable(_spotifySettings.FetchDataJobIntervalInMinutes));
+            return Result<GuildWeeklyStatsDto>.Failure(Errors.Stats.NoServerStatsAvailable);
         }
 
         var firstUser = usersWithStats.First();
