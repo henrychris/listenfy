@@ -87,7 +87,7 @@ public class FetchListeningDataJob(
             SpotifyUserId = user.Id,
             TrackId = item.Track.Id,
             TrackName = item.Track.Name,
-            ArtistNames = item.Track.Artists.Select(a => a.Name).ToList(),
+            Artists = item.Track.Artists.Select(a => new Artist { Id = a.Id, Name = a.Name }).ToList(),
             AlbumName = item.Track.Album.Name,
             DurationMs = item.Track.DurationMs,
             PlayedAt = DateTime.Parse(item.PlayedAt),
@@ -153,7 +153,7 @@ public class FetchListeningDataJob(
             SpotifyUserId = user.Id,
             TrackId = item.Track.Id,
             TrackName = item.Track.Name,
-            ArtistNames = item.Track.Artists.Select(a => a.Name).ToList(),
+            Artists = item.Track.Artists.Select(a => new Artist { Id = a.Id, Name = a.Name }).ToList(),
             AlbumName = item.Track.Album.Name,
             DurationMs = item.Track.DurationMs,
             PlayedAt = DateTime.Parse(item.PlayedAt), // Spotify returns ISO 8601

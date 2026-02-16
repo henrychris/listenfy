@@ -84,12 +84,13 @@ public static class Utilities
             {
                 lh.TrackId,
                 lh.TrackName,
-                ArtistName = string.Join(", ", lh.ArtistNames),
+                ArtistDisplay = string.Join(", ", lh.Artists.Select(a => a.Name)),
             })
             .Select(g => new TopTrack
             {
+                Id = g.Key.TrackId,
                 Name = g.Key.TrackName,
-                Artist = g.Key.ArtistName,
+                ArtistDisplay = g.Key.ArtistDisplay,
                 PlayCount = g.Count(),
             })
             .OrderByDescending(t => t.PlayCount)
@@ -99,9 +100,14 @@ public static class Utilities
         // Compute top artists - count each artist from the list
         // Each listening history entry counts as 1 play for each artist on that track
         var topArtists = listeningHistory
-            .SelectMany(lh => lh.ArtistNames)
-            .GroupBy(artist => artist)
-            .Select(g => new TopArtist { Name = g.Key, PlayCount = g.Count() })
+            .SelectMany(lh => lh.Artists)
+            .GroupBy(artist => new { artist.Id, artist.Name })
+            .Select(g => new TopArtist
+            {
+                Id = g.Key.Id,
+                Name = g.Key.Name,
+                PlayCount = g.Count(),
+            })
             .OrderByDescending(a => a.PlayCount)
             .Take(StatMenuConstants.TOP_ITEMS_TO_SHOW)
             .ToList();

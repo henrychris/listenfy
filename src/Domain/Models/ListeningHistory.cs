@@ -4,7 +4,7 @@ public class ListeningHistory : BaseEntity
 {
     public required string TrackId { get; set; }
     public required string TrackName { get; set; }
-    public required List<string> ArtistNames { get; set; }
+    public required List<Artist> Artists { get; set; }
     public required string AlbumName { get; set; }
     public int DurationMs { get; set; }
 
@@ -16,4 +16,10 @@ public class ListeningHistory : BaseEntity
 
     public required string SpotifyUserId { get; set; }
     public SpotifyUser SpotifyUser { get; set; } = null!;
+}
+
+public class Artist
+{
+    public required string Id { get; set; }
+    public required string Name { get; set; }
 }

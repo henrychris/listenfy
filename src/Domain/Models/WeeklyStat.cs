@@ -23,13 +23,15 @@ public class WeeklyStat : BaseEntity
 
 public class TopTrack
 {
-    public string Name { get; set; } = string.Empty;
-    public string Artist { get; set; } = string.Empty;
-    public int PlayCount { get; set; }
+    public required string Id { get; set; }
+    public required string Name { get; set; }
+    public required string ArtistDisplay { get; set; }
+    public required int PlayCount { get; set; }
 }
 
 public class TopArtist
 {
-    public string Name { get; set; } = string.Empty;
-    public int PlayCount { get; set; }
+    public required string Id { get; set; }
+    public required string Name { get; set; }
+    public required int PlayCount { get; set; }
 }

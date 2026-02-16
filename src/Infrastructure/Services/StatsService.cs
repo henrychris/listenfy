@@ -57,12 +57,20 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
                 TopTracks = weeklyStats
                     .TopTracks.Select(t => new TopTrackDto
                     {
+                        Id = t.Id,
                         Name = t.Name,
-                        Artist = t.Artist,
+                        ArtistDisplay = t.ArtistDisplay,
                         PlayCount = t.PlayCount,
                     })
                     .ToList(),
-                TopArtists = weeklyStats.TopArtists.Select(a => new TopArtistDto { Name = a.Name, PlayCount = a.PlayCount }).ToList(),
+                TopArtists = weeklyStats
+                    .TopArtists.Select(a => new TopArtistDto
+                    {
+                        Id = a.Id,
+                        Name = a.Name,
+                        PlayCount = a.PlayCount,
+                    })
+                    .ToList(),
                 TotalMinutesListened = weeklyStats.TotalMinutesListened,
                 TotalTracksPlayed = weeklyStats.TotalTracksPlayed,
                 UniqueTracksPlayed = weeklyStats.UniqueTracksPlayed,
@@ -141,12 +149,20 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
                     TopTracks = stats
                         .TopTracks.Select(t => new TopTrackDto
                         {
+                            Id = t.Id,
                             Name = t.Name,
-                            Artist = t.Artist,
+                            ArtistDisplay = t.ArtistDisplay,
                             PlayCount = t.PlayCount,
                         })
                         .ToList(),
-                    TopArtists = stats.TopArtists.Select(a => new TopArtistDto { Name = a.Name, PlayCount = a.PlayCount }).ToList(),
+                    TopArtists = stats
+                        .TopArtists.Select(a => new TopArtistDto
+                        {
+                            Id = a.Id,
+                            Name = a.Name,
+                            PlayCount = a.PlayCount,
+                        })
+                        .ToList(),
                     TotalMinutesListened = stats.TotalMinutesListened,
                     TotalTracksPlayed = stats.TotalTracksPlayed,
                     UniqueTracksPlayed = stats.UniqueTracksPlayed,
@@ -189,7 +205,8 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
             for (var i = 0; i < Math.Min(5, stats.TopTracks.Count); i++)
             {
                 var track = stats.TopTracks[i];
-                description.AppendLine($"{i + 1}. **{track.Name}** by {track.Artist} ({track.PlayCount}x)");
+                var trackLink = $"https://open.spotify.com/track/{track.Id}";
+                description.AppendLine($"{i + 1}. [**{track.Name}**]({trackLink}) by {track.ArtistDisplay} ({track.PlayCount}x)");
             }
 
             description.AppendLine();
@@ -201,7 +218,8 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
             for (var i = 0; i < Math.Min(5, stats.TopArtists.Count); i++)
             {
                 var artist = stats.TopArtists[i];
-                description.AppendLine($"{i + 1}. **{artist.Name}** ({artist.PlayCount}x)");
+                var artistLink = $"https://open.spotify.com/artist/{artist.Id}";
+                description.AppendLine($"{i + 1}. [**{artist.Name}**]({artistLink}) ({artist.PlayCount}x)");
             }
         }
 
@@ -243,13 +261,15 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
             if (user.TopTracks.Count > 0)
             {
                 var topTrack = user.TopTracks.First();
-                description.AppendLine($"🔥 Top Track: **{topTrack.Name}** by {topTrack.Artist} ({topTrack.PlayCount}x plays)");
+                var trackLink = $"https://open.spotify.com/track/{topTrack.Id}";
+                description.AppendLine($"🔥 Top Track: [**{topTrack.Name}**]({trackLink}) by {topTrack.ArtistDisplay} ({topTrack.PlayCount}x plays)");
             }
 
             if (user.TopArtists.Count > 0)
             {
                 var topArtist = user.TopArtists.First();
-                description.AppendLine($"🎤 Top Artist: **{topArtist.Name}** ({topArtist.PlayCount}x plays)");
+                var artistLink = $"https://open.spotify.com/artist/{topArtist.Id}";
+                description.AppendLine($"🎤 Top Artist: [**{topArtist.Name}**]({artistLink}) ({topArtist.PlayCount}x plays)");
             }
 
             description.AppendLine();

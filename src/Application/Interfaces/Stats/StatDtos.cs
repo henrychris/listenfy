@@ -24,13 +24,15 @@ public class GuildWeeklyStatsDto
 
 public class TopTrackDto
 {
+    public required string Id { get; set; }
     public required string Name { get; set; }
-    public required string Artist { get; set; }
+    public required string ArtistDisplay { get; set; }
     public required int PlayCount { get; set; }
 }
 
 public class TopArtistDto
 {
+    public required string Id { get; set; }
     public required string Name { get; set; }
     public required int PlayCount { get; set; }
 }
