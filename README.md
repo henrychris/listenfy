@@ -66,12 +66,69 @@ The application will start at `http://localhost:5051`. The solitary callback end
 
 ## Development
 
+### Database Setup
+
+For local development, you can use Docker to run a PostgreSQL instance:
+
+```bash
+docker run --name listenfy-postgres \
+  -e POSTGRES_PASSWORD=mysecretpassword \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_DB=ListenfyDb \
+  -p 5430:5432 \
+  -d postgres
+```
+
+This creates a PostgreSQL container with settings matching the `.env.example` file.
+
 ### Building
 
 ```bash
 dotnet build
 ```
 
+### Running
+
+Ensure your `.env` file is configured and the database is running, then:
+
+```bash
+dotnet run
+```
+
+The bot will connect to Discord and be ready to use. Add the bot to your server using the OAuth2 URL with appropriate permissions:
+
+- Read Messages
+- Send Messages
+- Send Messages In Threads
+- Embed Links
+- Use Slash Commands
+- Read Message History
+
+### Code Formatting
+
+This project uses [CSharpier](https://csharpier.com/) for code formatting. To check formatting:
+
+```bash
+dotnet tool restore
+dotnet csharpier --check .
+```
+
+To format code:
+
+```bash
+dotnet csharpier .
+```
+
 ## Contributing
 
-Not accepting any at the moment. When I am, this section will be updated.
+Contributions are welcome! Whether it's bug fixes, new features, or documentation improvements, feel free to:
+
+- Open pull requests for new features or improvements
+- Report issues on GitHub
+- Suggest enhancements
+
+### Guidelines
+
+- **Pull Requests**: PRs are squash merged, so ensure the PR title clearly describes the changes. The description should provide detailed context about what's being added or modified.
+- **Commits**: Each commit within a PR should have an informative title. Please squash trivial commits before submitting.
+- **Code Style**: Run `dotnet csharpier .` before committing to ensure code is properly formatted. The CI will check this automatically.
