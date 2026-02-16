@@ -4,7 +4,7 @@ public class ListeningHistory : BaseEntity
 {
     public required string TrackId { get; set; }
     public required string TrackName { get; set; }
-    public required string ArtistName { get; set; }
+    public required List<string> ArtistNames { get; set; }
     public required string AlbumName { get; set; }
     public int DurationMs { get; set; }
 

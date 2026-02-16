@@ -43,6 +43,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         // Configure JSON columns for WeeklyStat collections
         builder.Entity<WeeklyStat>().OwnsMany(w => w.TopTracks, tb => tb.ToJson());
         builder.Entity<WeeklyStat>().OwnsMany(w => w.TopArtists, ab => ab.ToJson());
+
+        // Configure JSON column for ListeningHistory artist names (List<string> stored as JSONB)
+        builder.Entity<ListeningHistory>().Property(lh => lh.ArtistNames).HasColumnType("jsonb");
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken token = default)
