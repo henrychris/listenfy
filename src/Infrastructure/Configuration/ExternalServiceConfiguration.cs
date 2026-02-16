@@ -26,7 +26,6 @@ internal static class ExternalServiceConfiguration
     public static void SetupSpotify(this IServiceCollection services)
     {
         var spotifySettings = services.BuildServiceProvider().GetService<IOptions<SpotifySettings>>()?.Value!;
-
         services
             .AddRefitClient<ISpotifyApi>(
                 new RefitSettings
@@ -43,7 +42,8 @@ internal static class ExternalServiceConfiguration
                     client.BaseAddress = new Uri(settings.ApiBaseUrl);
                 }
             )
-            .AddHttpMessageHandler<RefitLoggingHandler>();
+            .AddHttpMessageHandler<RefitLoggingHandler>()
+            .AddStandardResilienceHandler();
 
         services
             .AddRefitClient<ISpotifyAccountApi>(
@@ -61,6 +61,7 @@ internal static class ExternalServiceConfiguration
                     client.BaseAddress = new Uri(settings.AccountsBaseUrl);
                 }
             )
-            .AddHttpMessageHandler<RefitLoggingHandler>();
+            .AddHttpMessageHandler<RefitLoggingHandler>()
+            .AddStandardResilienceHandler();
     }
 }
