@@ -1,4 +1,6 @@
 using FluentValidation;
+using Hangfire;
+using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
 using Listenfy.Infrastructure.Persistence;
 using Listenfy.Shared.Errors;
@@ -23,8 +25,14 @@ public class OAuthResponse
     public required ulong DiscordGuildId { get; set; }
 }
 
-public class Handler(ApplicationDbContext dbContext, ISpotifyService spotifyService, TimeProvider timeProvider, ILogger<Handler> logger)
-    : IRequestHandler<OAuthCallbackRequest, Result<OAuthResponse>>
+public class Handler(
+    ApplicationDbContext dbContext,
+    ISpotifyService spotifyService,
+    INotificationService notificationService,
+    TimeProvider timeProvider,
+    IBackgroundJobClient backgroundJobClient,
+    ILogger<Handler> logger
+) : IRequestHandler<OAuthCallbackRequest, Result<OAuthResponse>>
 {
     public async Task<Result<OAuthResponse>> Handle(OAuthCallbackRequest request, CancellationToken cancellationToken)
     {
@@ -100,6 +108,11 @@ public class Handler(ApplicationDbContext dbContext, ISpotifyService spotifyServ
             "Completed OAuth flow for Discord user {DiscordUserId} in guild {GuildId}",
             userConnection.DiscordUserId,
             userConnection.Guild.DiscordGuildId
+        );
+
+        // Notify the user via Discord DM that connection was successful
+        backgroundJobClient.Enqueue(
+            () => notificationService.NotifyConnectionSuccessAsync(userConnection.DiscordUserId, userConnection.Guild.GuildName)
         );
 
         return Result<OAuthResponse>.Success(

@@ -1,3 +1,4 @@
+using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
 using Listenfy.Application.Interfaces.Stats;
 using Listenfy.Infrastructure.Services;
@@ -17,6 +18,7 @@ internal static class ServiceConfiguration
     {
         services.AddScoped<ISpotifyService, SpotifyService>();
         services.AddScoped<IStatsService, StatsService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddTransient<RefitLoggingHandler>();
 
         // used for time manipulation and testing

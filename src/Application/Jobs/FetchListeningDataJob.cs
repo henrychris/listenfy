@@ -1,6 +1,8 @@
+using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
 using Listenfy.Domain.Models;
 using Listenfy.Infrastructure.Persistence;
+using Listenfy.Shared.Errors;
 using Microsoft.EntityFrameworkCore;
 
 namespace Listenfy.Application.Jobs;
@@ -8,6 +10,7 @@ namespace Listenfy.Application.Jobs;
 public class FetchListeningDataJob(
     ApplicationDbContext dbContext,
     ISpotifyService spotifyService,
+    INotificationService notificationService,
     TimeProvider timeProvider,
     ILogger<FetchListeningDataJob> logger
 )
@@ -16,7 +19,11 @@ public class FetchListeningDataJob(
     {
         logger.LogInformation("Starting FetchListeningDataJob");
 
-        var spotifyUsers = await dbContext.SpotifyUsers.Include(u => u.SpotifyFetchMetadata).ToListAsync();
+        var spotifyUsers = await dbContext
+            .SpotifyUsers.Include(u => u.SpotifyFetchMetadata)
+            .Include(u => u.UserConnections)
+            .ThenInclude(uc => uc.Guild)
+            .ToListAsync();
         logger.LogInformation("Found {Count} Spotify users to process", spotifyUsers.Count);
 
         foreach (var user in spotifyUsers)
@@ -56,6 +63,13 @@ public class FetchListeningDataJob(
         var result = await spotifyService.GetRecentlyPlayedTracks(user);
         if (result.IsFailure)
         {
+            // Check if this is an expired refresh token
+            if (result.Error.Code == Errors.Spotify.RefreshTokenExpired.Code)
+            {
+                await HandleExpiredRefreshToken(user);
+                return;
+            }
+
             logger.LogError(
                 "Failed to fetch recently played tracks for user {SpotifyUserId}. Error: {Error}",
                 user.SpotifyUserId,
@@ -126,6 +140,13 @@ public class FetchListeningDataJob(
         var result = await spotifyService.GetRecentlyPlayedTracks(user, afterTimestampMilliseconds);
         if (result.IsFailure)
         {
+            // Check if this is an expired refresh token
+            if (result.Error.Code == Errors.Spotify.RefreshTokenExpired.Code)
+            {
+                await HandleExpiredRefreshToken(user);
+                return;
+            }
+
             logger.LogError(
                 "Failed to fetch recently played tracks for user {SpotifyUserId}. Error: {Error}",
                 user.SpotifyUserId,
@@ -173,6 +194,32 @@ public class FetchListeningDataJob(
             user.SpotifyUserId,
             metadata.LastFetchedAt
         );
+    }
+
+    private async Task HandleExpiredRefreshToken(SpotifyUser user)
+    {
+        logger.LogWarning("Refresh token expired for SpotifyUser {SpotifyUserId}. Removing user connections.", user.SpotifyUserId);
+
+        // Get all connections for this user (they may be connected to multiple guilds)
+        var connections = user.UserConnections.ToList();
+        foreach (var connection in connections)
+        {
+            var guildName = connection.Guild?.GuildName ?? "Unknown Server";
+            logger.LogInformation(
+                "Notifying Discord user {DiscordUserId} about expired token in guild {GuildName} ({GuildId})",
+                connection.DiscordUserId,
+                guildName,
+                connection.Guild?.DiscordGuildId ?? 0
+            );
+
+            // Notify the user via DM
+            await notificationService.NotifyRefreshTokenExpiredAsync(connection.DiscordUserId, guildName);
+        }
+
+        // Remove all connections for this user
+        dbContext.UserConnections.RemoveRange(connections);
+        await dbContext.SaveChangesAsync();
+        logger.LogInformation("Removed SpotifyUser {SpotifyUserId} and associated connections due to expired token", user.SpotifyUserId);
     }
 
     private DateTime GetLastFetchedTimestamp(SpotifyRecentlyPlayedTracksResponse response, List<SpotifyRecentlyPlayedItem> items)

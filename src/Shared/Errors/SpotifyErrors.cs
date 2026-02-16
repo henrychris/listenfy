@@ -1,4 +1,3 @@
-using Listenfy.Domain;
 using Listenfy.Shared.Results;
 
 namespace Listenfy.Shared.Errors;
@@ -16,6 +15,12 @@ public static partial class Errors
             Error.Failure(
                 "Spotify.TokenRefreshFailed",
                 "We weren't able to refresh your access token. Please run `disconnect`, then run `/connect` again."
+            );
+
+        public static Error RefreshTokenExpired =>
+            Error.Failure(
+                "Spotify.RefreshTokenExpired",
+                "Your Spotify connection has expired. Please reconnect using `/connect` to continue tracking your listening history."
             );
 
         public static Error ProfileFetchFailed =>
@@ -37,5 +42,8 @@ public static partial class Errors
         {
             return Error.NotFound("Stats.NoStatsAvailable", $"No stats available yet. Try again in {minutes} minute{(minutes == 1 ? "" : "s")}.");
         }
+
+        public static Error NoServerStatsAvailable =>
+            Error.NotFound("Stats.NoServerStatsAvailable", $"No stats available yet. Server stats are sent on Sundays.");
     }
 }

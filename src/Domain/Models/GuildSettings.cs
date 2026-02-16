@@ -3,6 +3,7 @@ namespace Listenfy.Domain.Models;
 public class GuildSettings : BaseEntity
 {
     public ulong DiscordGuildId { get; set; }
+    public required string GuildName { get; set; } // Discord server name (may become outdated)
     public ulong? StatsChannelId { get; set; } // Where to post weekly stats
     public bool IsEnabled { get; set; } = true;
     public DayOfWeek WeeklySummaryDay { get; set; } = DayOfWeek.Sunday;
