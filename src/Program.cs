@@ -51,8 +51,10 @@ try
     builder.Services.SetupSpotify();
     builder.Services.SetupDatabase<ApplicationDbContext>();
     builder.Services.SetupHangfire(environment);
+    builder.Services.SetupCors();
 
     var app = builder.Build();
+    app.UseCors("DefaultCors");
     app.UseSerilogRequestLogging();
 
     // Add Discord commands from modules

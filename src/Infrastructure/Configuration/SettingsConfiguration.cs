@@ -28,6 +28,7 @@ internal static class SettingsConfiguration
         ConfigureSettings<DiscordSettings>(services);
         ConfigureSettings<DatabaseSettings>(services);
         ConfigureSettings<SpotifySettings>(services);
+        ConfigureSettings<CorsSettings>(services);
 
         logger.LogInformation("Secrets have been bound to classes.");
     }
