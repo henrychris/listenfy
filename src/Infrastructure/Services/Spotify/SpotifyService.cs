@@ -68,6 +68,20 @@ public class SpotifyService(
         var response = await spotifyApi.GetUserProfile(accessToken);
         if (!response.IsSuccessful)
         {
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                var errorContent = response.Error?.Content?.ToString() ?? string.Empty;
+                if (
+                    errorContent.Contains(
+                        "Check settings on developer.spotify.com/dashboard, the user may not be registered.",
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+                {
+                    logger.LogWarning("Spotify user not allowlisted. 403 Forbidden. Error: {ex}", response.Error);
+                    return Result<SpotifyProfile>.Failure(Errors.Spotify.NotAllowlisted);
+                }
+            }
             logger.LogError("Failed to get user profile. Error: {ex}", response.Error);
             return Result<SpotifyProfile>.Failure(Errors.Spotify.ProfileFetchFailed);
         }

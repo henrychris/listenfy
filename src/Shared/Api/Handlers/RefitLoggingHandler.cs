@@ -15,9 +15,15 @@ public class RefitLoggingHandler(ILogger<RefitLoggingHandler> logger) : Delegati
 
         var response = await base.SendAsync(request, cancellationToken);
 
-        // Log response
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        logger.LogInformation("Refit Response: {StatusCode} - Content: {Content}", response.StatusCode, responseContent);
+        if (response.IsSuccessStatusCode)
+        {
+            logger.LogDebug("Refit Response: {StatusCode} - Content: {Content}", response.StatusCode, responseContent);
+        }
+        else
+        {
+            logger.LogError("Refit Response: {StatusCode} - Content: {Content}", response.StatusCode, responseContent);
+        }
 
         return response;
     }
