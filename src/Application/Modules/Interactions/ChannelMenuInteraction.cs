@@ -41,7 +41,7 @@ public class ChannelMenuInteraction(ApplicationDbContext dbContext, ILogger<Conf
             if (settings is null)
             {
                 logger.LogInformation("Creating new GuildSettings for GuildId: {GuildId}", guildId.Value);
-                settings = new GuildSettings { DiscordGuildId = guildId.Value };
+                settings = new GuildSettings { DiscordGuildId = guildId.Value, GuildName = Context.Guild?.Name ?? "Unknown Guild" };
                 dbContext.GuildSettings.Add(settings);
             }
             else

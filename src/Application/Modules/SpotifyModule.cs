@@ -61,8 +61,19 @@ public class SpotifyModule(
         if (guildSettings is null)
         {
             logger.LogInformation("Creating new GuildSettings during Connect. GuildId: {GuildId}", guildId.Value);
-            guildSettings = new GuildSettings { DiscordGuildId = guildId.Value };
+            guildSettings = new GuildSettings { DiscordGuildId = guildId.Value, GuildName = Context.Guild.Name };
             dbContext.GuildSettings.Add(guildSettings);
+        }
+        else if (guildSettings.GuildName != Context.Guild.Name)
+        {
+            // Update guild name if it has changed
+            logger.LogInformation(
+                "Updating guild name from '{OldName}' to '{NewName}' for GuildId: {GuildId}",
+                guildSettings.GuildName,
+                Context.Guild.Name,
+                guildId.Value
+            );
+            guildSettings.GuildName = Context.Guild.Name;
         }
 
         // Create pending connection
@@ -141,6 +152,7 @@ public class SpotifyModule(
         );
         dbContext.UserConnections.Remove(connection);
         await dbContext.SaveChangesAsync();
+
         logger.LogInformation("Spotify account successfully disconnected. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, userId);
         await RespondAsync(InteractionCallback.Message("✅ Your Spotify account has been disconnected from this server."));
     }
