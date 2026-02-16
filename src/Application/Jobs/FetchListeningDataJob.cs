@@ -36,7 +36,7 @@ public class FetchListeningDataJob(
 
     private async Task ProcessUserListeningHistory(SpotifyUser user)
     {
-        logger.LogDebug("Processing user {SpotifyUserId}", user.SpotifyUserId);
+        logger.LogInformation("Processing user {SpotifyUserId}", user.SpotifyUserId);
 
         var metadata = user.SpotifyFetchMetadata;
         if (metadata is null)
@@ -68,7 +68,7 @@ public class FetchListeningDataJob(
         var items = response.Items;
         if (items.Count == 0)
         {
-            logger.LogDebug("No tracks available for first-time fetch for user {SpotifyUserId}", user.SpotifyUserId);
+            logger.LogInformation("No tracks available for first-time fetch for user {SpotifyUserId}", user.SpotifyUserId);
 
             var metadata = new SpotifyFetchMetadata
             {
@@ -116,7 +116,12 @@ public class FetchListeningDataJob(
     private async Task ProcessSubsequentFetch(SpotifyUser user, SpotifyFetchMetadata metadata)
     {
         var afterTimestampMilliseconds = new DateTimeOffset(metadata.LastFetchedAt).ToUnixTimeMilliseconds();
-        logger.LogDebug("Fetching tracks for user {SpotifyUserId} after timestamp {After}", user.SpotifyUserId, afterTimestampMilliseconds);
+        logger.LogInformation(
+            "Fetching tracks for user {SpotifyUserId} after timestamp {After}. Date: {Date}",
+            user.SpotifyUserId,
+            afterTimestampMilliseconds,
+            metadata.LastFetchedAt
+        );
 
         var result = await spotifyService.GetRecentlyPlayedTracks(user, afterTimestampMilliseconds);
         if (result.IsFailure)
@@ -133,7 +138,7 @@ public class FetchListeningDataJob(
         var items = response.Items;
         if (items.Count == 0)
         {
-            logger.LogDebug("No new tracks for user {SpotifyUserId}", user.SpotifyUserId);
+            logger.LogInformation("No new tracks for user {SpotifyUserId}", user.SpotifyUserId);
             // Don't update LastFetchedAt if there are no new tracks - keep using the same cursor
             metadata.TracksFetchedInLastRun = 0;
             await dbContext.SaveChangesAsync();
@@ -176,13 +181,13 @@ public class FetchListeningDataJob(
         {
             var cursorTimestamp = long.Parse(response.Cursors.After);
             var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(cursorTimestamp).UtcDateTime;
-            logger.LogDebug("Using cursor timestamp {Timestamp} ({DateTime})", response.Cursors.After, timestamp);
+            logger.LogInformation("Using cursor timestamp {Timestamp} ({DateTime})", response.Cursors.After, timestamp);
             return timestamp;
         }
 
         var mostRecentTrack = items.OrderByDescending(i => DateTime.Parse(i.PlayedAt)).First();
         var fallbackTimestamp = DateTime.Parse(mostRecentTrack.PlayedAt);
-        logger.LogDebug("No cursor in response, using most recent track timestamp: {DateTime}", fallbackTimestamp);
+        logger.LogInformation("No cursor in response, using most recent track timestamp: {DateTime}", fallbackTimestamp);
         return fallbackTimestamp;
     }
 }
