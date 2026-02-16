@@ -4,6 +4,7 @@ using Listenfy.Application.Settings;
 using Listenfy.Shared.Api.Handlers;
 using Microsoft.Extensions.Options;
 using NetCord;
+using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
@@ -18,9 +19,14 @@ internal static class ExternalServiceConfiguration
     {
         var discordSettings = services.BuildServiceProvider().GetService<IOptions<DiscordSettings>>()?.Value!;
         services
-            .AddDiscordGateway(x => x.Token = discordSettings.BotToken)
+            .AddDiscordGateway(x =>
+            {
+                x.Token = discordSettings.BotToken;
+                x.Intents = GatewayIntents.Guilds;
+            })
             .AddComponentInteractions<ChannelMenuInteraction, ChannelMenuInteractionContext>()
-            .AddApplicationCommands();
+            .AddApplicationCommands()
+            .AddGatewayHandlers(typeof(Program).Assembly);
     }
 
     public static void SetupSpotify(this IServiceCollection services)
