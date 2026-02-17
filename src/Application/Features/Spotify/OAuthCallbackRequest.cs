@@ -2,6 +2,7 @@ using FluentValidation;
 using Hangfire;
 using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
+using Listenfy.Application.Jobs;
 using Listenfy.Infrastructure.Persistence;
 using Listenfy.Shared.Errors;
 using Listenfy.Shared.Results;
@@ -114,6 +115,9 @@ public class Handler(
         backgroundJobClient.Enqueue(
             () => notificationService.NotifyConnectionSuccessAsync(userConnection.DiscordUserId, userConnection.Guild.GuildName)
         );
+
+        // immediately fetch listening data so stats are available faster, instead of waiting for the next scheduled job run
+        backgroundJobClient.Enqueue<FetchListeningDataJob>(job => job.ExecuteForUserAsync(spotifyUser.Id));
 
         return Result<OAuthResponse>.Success(
             new OAuthResponse

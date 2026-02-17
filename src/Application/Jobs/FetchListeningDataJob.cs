@@ -48,6 +48,39 @@ public class FetchListeningDataJob(
         logger.LogInformation("Completed FetchListeningDataJob");
     }
 
+    public async Task ExecuteForUserAsync(string spotifyUserId)
+    {
+        logger.LogInformation("Starting FetchListeningDataJob for user {SpotifyUserId}", spotifyUserId);
+
+        var user = await dbContext
+            .SpotifyUsers.Include(u => u.SpotifyFetchMetadata)
+            .Include(u => u.UserConnections)
+            .ThenInclude(uc => uc.Guild)
+            .FirstOrDefaultAsync(u => u.Id == spotifyUserId);
+        if (user is null)
+        {
+            logger.LogWarning("SpotifyUser not found for id {SpotifyUserId}", spotifyUserId);
+            return;
+        }
+
+        if (user.UserConnections.Count == 0)
+        {
+            // ignore users whose accounts are disconnected so we don't send multiple disconnection DMs
+            return;
+        }
+
+        try
+        {
+            await ProcessUserListeningHistory(user);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error processing listening history for SpotifyUser {SpotifyUserId}", user.SpotifyUserId);
+        }
+
+        logger.LogInformation("Completed FetchListeningDataJob for user {SpotifyUserId}", spotifyUserId);
+    }
+
     private async Task ProcessUserListeningHistory(SpotifyUser user)
     {
         logger.LogInformation("Processing user {SpotifyUserId}", user.SpotifyUserId);
