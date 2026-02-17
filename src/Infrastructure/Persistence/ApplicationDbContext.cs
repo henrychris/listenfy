@@ -46,6 +46,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         // Configure JSON column for ListeningHistory artists
         builder.Entity<ListeningHistory>().OwnsMany(lh => lh.Artists, tb => tb.ToJson());
+
+        // Prevent duplicate track plays per user
+        builder
+            .Entity<ListeningHistory>()
+            .HasIndex(lh => new
+            {
+                lh.SpotifyUserId,
+                lh.TrackId,
+                lh.PlayedAt,
+            })
+            .IsUnique();
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken token = default)
