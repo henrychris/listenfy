@@ -1,3 +1,4 @@
+using System.Globalization;
 using Listenfy.Application.Interfaces;
 using Listenfy.Application.Interfaces.Spotify;
 using Listenfy.Domain.Models;
@@ -102,32 +103,28 @@ public class FetchListeningDataJob(
         }
 
         logger.LogInformation("Found {Count} tracks for first-time fetch for user {SpotifyUserId}", items.Count, user.SpotifyUserId);
-        var listeningHistories = items.Select(item => new ListeningHistory
+        var listeningHistories = await BuildNewListeningHistories(user, items);
+        if (listeningHistories.Count == 0)
         {
-            SpotifyUserId = user.Id,
-            TrackId = item.Track.Id,
-            TrackName = item.Track.Name,
-            Artists = item.Track.Artists.Select(a => new Artist { Id = a.Id, Name = a.Name }).ToList(),
-            AlbumName = item.Track.Album.Name,
-            DurationMs = item.Track.DurationMs,
-            PlayedAt = DateTime.Parse(item.PlayedAt),
-            ContextType = item.Context?.Type,
-            ContextUri = item.Context?.Uri,
-        });
-        await dbContext.ListeningHistories.AddRangeAsync(listeningHistories);
+            logger.LogInformation("All fetched tracks already stored for user {SpotifyUserId}", user.SpotifyUserId);
+        }
+        else
+        {
+            await dbContext.ListeningHistories.AddRangeAsync(listeningHistories);
+        }
 
         var newMetadata = new SpotifyFetchMetadata
         {
             SpotifyUserId = user.Id,
             LastFetchedAt = GetLastFetchedTimestamp(response, items),
-            TracksFetchedInLastRun = items.Count,
+            TracksFetchedInLastRun = listeningHistories.Count,
         };
         dbContext.SpotifyFetchMetadata.Add(newMetadata);
 
         await dbContext.SaveChangesAsync();
         logger.LogInformation(
             "Saved {Count} tracks for user {SpotifyUserId}. Last fetched at: {LastFetchedAt}",
-            items.Count,
+            listeningHistories.Count,
             user.SpotifyUserId,
             newMetadata.LastFetchedAt
         );
@@ -175,28 +172,23 @@ public class FetchListeningDataJob(
         logger.LogInformation("Found {Count} new tracks for user {SpotifyUserId}", items.Count, user.SpotifyUserId);
 
         // Save tracks to listening history
-        var listeningHistories = items.Select(item => new ListeningHistory
+        var listeningHistories = await BuildNewListeningHistories(user, items);
+        if (listeningHistories.Count == 0)
         {
-            SpotifyUserId = user.Id,
-            TrackId = item.Track.Id,
-            TrackName = item.Track.Name,
-            Artists = item.Track.Artists.Select(a => new Artist { Id = a.Id, Name = a.Name }).ToList(),
-            AlbumName = item.Track.Album.Name,
-            DurationMs = item.Track.DurationMs,
-            PlayedAt = DateTime.Parse(item.PlayedAt), // Spotify returns ISO 8601
-            ContextType = item.Context?.Type,
-            ContextUri = item.Context?.Uri,
-        });
-
-        await dbContext.ListeningHistories.AddRangeAsync(listeningHistories);
+            logger.LogInformation("All fetched tracks already stored for user {SpotifyUserId}", user.SpotifyUserId);
+        }
+        else
+        {
+            await dbContext.ListeningHistories.AddRangeAsync(listeningHistories);
+        }
 
         metadata.LastFetchedAt = GetLastFetchedTimestamp(response, items);
-        metadata.TracksFetchedInLastRun = items.Count;
+        metadata.TracksFetchedInLastRun = listeningHistories.Count;
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation(
             "Saved {Count} tracks for user {SpotifyUserId}. Last fetched at: {LastFetchedAt}",
-            items.Count,
+            listeningHistories.Count,
             user.SpotifyUserId,
             metadata.LastFetchedAt
         );
@@ -242,5 +234,41 @@ public class FetchListeningDataJob(
         var fallbackTimestamp = DateTime.Parse(mostRecentTrack.PlayedAt);
         logger.LogInformation("No cursor in response, using most recent track timestamp: {DateTime}", fallbackTimestamp);
         return fallbackTimestamp;
+    }
+
+    private async Task<List<ListeningHistory>> BuildNewListeningHistories(SpotifyUser user, List<SpotifyRecentlyPlayedItem> items)
+    {
+        if (items.Count == 0)
+        {
+            return [];
+        }
+
+        var candidates = items
+            .Select(item => new ListeningHistory
+            {
+                SpotifyUserId = user.Id,
+                TrackId = item.Track.Id,
+                TrackName = item.Track.Name,
+                Artists = item.Track.Artists.Select(a => new Artist { Id = a.Id, Name = a.Name }).ToList(),
+                AlbumName = item.Track.Album.Name,
+                DurationMs = item.Track.DurationMs,
+                PlayedAt = DateTimeOffset.Parse(item.PlayedAt, CultureInfo.InvariantCulture).UtcDateTime,
+                ContextType = item.Context?.Type,
+                ContextUri = item.Context?.Uri,
+            })
+            .ToList();
+
+        var minPlayedAt = candidates.Min(c => c.PlayedAt);
+        var maxPlayedAt = candidates.Max(c => c.PlayedAt);
+        var trackIds = candidates.Select(c => c.TrackId).Distinct().ToList();
+
+        var existingKeys = await dbContext
+            .ListeningHistories.Where(lh =>
+                lh.SpotifyUserId == user.Id && lh.PlayedAt >= minPlayedAt && lh.PlayedAt <= maxPlayedAt && trackIds.Contains(lh.TrackId)
+            )
+            .Select(lh => new { lh.TrackId, lh.PlayedAt })
+            .ToListAsync();
+        var existingSet = new HashSet<(string TrackId, DateTime PlayedAt)>(existingKeys.Select(key => (key.TrackId, key.PlayedAt)));
+        return candidates.Where(c => !existingSet.Contains((c.TrackId, c.PlayedAt))).ToList();
     }
 }
