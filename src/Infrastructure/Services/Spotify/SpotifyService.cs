@@ -105,12 +105,7 @@ public class SpotifyService(
         );
         if (!response.IsSuccessful)
         {
-            // Check if this is an expired/invalid refresh token (Spotify returns 400 with "invalid_grant")
-            var errorContent = response.Error?.Content?.ToString() ?? string.Empty;
-            if (
-                response.StatusCode == System.Net.HttpStatusCode.BadRequest
-                && errorContent.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase)
-            )
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
                 logger.LogWarning("Refresh token has expired or been revoked. Error: {ex}", response.Error);
                 return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.RefreshTokenExpired);
