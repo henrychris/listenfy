@@ -28,6 +28,12 @@ public class FetchListeningDataJob(
 
         foreach (var user in spotifyUsers)
         {
+            if (user.UserConnections.Count == 0)
+            {
+                // ignore users whose accounts are disconnected so we don't send multiple disconnection DMs
+                continue;
+            }
+
             try
             {
                 await ProcessUserListeningHistory(user);
