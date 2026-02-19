@@ -25,7 +25,8 @@ internal static class ExternalServiceConfiguration
                 x.Intents = GatewayIntents.Guilds;
             })
             .AddComponentInteractions<ChannelMenuInteraction, ChannelMenuInteractionContext>()
-            .AddApplicationCommands();
+            .AddApplicationCommands()
+            .AddGatewayHandlers(typeof(Program).Assembly);
     }
 
     public static void SetupSpotify(this IServiceCollection services)
