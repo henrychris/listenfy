@@ -269,7 +269,7 @@ public class SpotifyModule(
 
         try
         {
-            var stats = await statsService.GetGuildWeeklyStats(guildId.Value);
+            var stats = await statsService.GetGuildLast7DaysStats(guildId.Value);
             if (stats.IsFailure)
             {
                 logger.LogInformation("No server stats available. GuildId: {GuildId}, Reason: {Reason}", guildId.Value, stats.Error.Description);
@@ -277,7 +277,7 @@ public class SpotifyModule(
                 return;
             }
 
-            var embed = statsService.BuildGuildStatsEmbed(stats.Value);
+            var embed = statsService.BuildGuildStatsEmbed(stats.Value, true);
             logger.LogInformation("Server stats generated successfully. GuildId: {GuildId}", guildId.Value);
             await Context.Interaction.SendFollowupMessageAsync(new InteractionMessageProperties { Embeds = [embed] });
         }
