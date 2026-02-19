@@ -29,29 +29,16 @@ public class SpotifyService(
     /// <exception cref="NotImplementedException"></exception>
     public string GetAuthorizationUrl(string oAuthState)
     {
-        var scopes = "user-read-recently-played user-top-read user-read-private user-read-email";
-        var queryParams = HttpUtility.ParseQueryString(string.Empty);
-        queryParams["client_id"] = _spotifySettings.ClientId;
-        queryParams["redirect_uri"] = _spotifySettings.RedirectUrl;
-        queryParams["state"] = oAuthState;
-        queryParams["response_type"] = "code";
-        queryParams["scope"] = scopes;
-
-        return $"{_spotifySettings.AccountsBaseUrl}/authorize?{queryParams}";
+        return $"{_spotifySettings.ConnectUrl}?token={oAuthState}";
     }
 
-    public async Task<Result<SpotifyTokenResponse>> ExchangeCodeForTokens(string code, string redirectUri)
+    public async Task<Result<SpotifyTokenResponse>> ExchangeCodeForTokens(string code)
     {
         var spotifyCredentials = $"{_spotifySettings.ClientId}:{_spotifySettings.ClientSecret}";
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes(spotifyCredentials));
 
         var response = await spotifyAccountApi.RequestAccessToken(
-            new SpotifyAccessTokenRequest
-            {
-                GrantType = "authorization_code",
-                Code = code,
-                RedirectUri = redirectUri,
-            },
+            new SpotifyAccessTokenRequest { Code = code, RedirectUri = _spotifySettings.RedirectUrl },
             token
         );
         if (!response.IsSuccessful)
@@ -89,8 +76,14 @@ public class SpotifyService(
         return Result<SpotifyProfile>.Success(response.Content);
     }
 
-    public async Task<Result<SpotifyTokenResponse>> RefreshAccessToken(string refreshToken)
+    public async Task<Result<SpotifyTokenResponse>> RefreshAccessToken(SpotifyUser spotifyUser)
     {
+        if (!string.IsNullOrEmpty(spotifyUser.ClientId))
+        {
+            logger.LogInformation("Refreshing access token using client credentials for Spotify user: {SpotifyUserId}", spotifyUser.Id);
+            return await RefreshAccessTokenPKCE(spotifyUser.RefreshToken, spotifyUser.ClientId);
+        }
+
         var spotifyCredentials = $"{_spotifySettings.ClientId}:{_spotifySettings.ClientSecret}";
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes(spotifyCredentials));
 
@@ -98,10 +91,35 @@ public class SpotifyService(
             new SpotifyRefreshTokenRequest
             {
                 GrantType = "refresh_token",
-                RefreshToken = refreshToken,
+                RefreshToken = spotifyUser.RefreshToken,
                 ClientId = _spotifySettings.ClientId,
             },
             token
+        );
+        if (!response.IsSuccessful)
+        {
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                logger.LogWarning("Refresh token has expired or been revoked. Error: {ex}", response.Error);
+                return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.RefreshTokenExpired);
+            }
+
+            logger.LogError("Failed to refresh access token. Error: {ex}", response.Error);
+            return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.TokenRefreshFailed);
+        }
+
+        return Result<SpotifyTokenResponse>.Success(response.Content);
+    }
+
+    private async Task<Result<SpotifyTokenResponse>> RefreshAccessTokenPKCE(string refreshToken, string clientId)
+    {
+        var response = await spotifyAccountApi.RefreshAccessToken(
+            new SpotifyRefreshTokenRequest
+            {
+                GrantType = "refresh_token",
+                RefreshToken = refreshToken,
+                ClientId = clientId,
+            }
         );
         if (!response.IsSuccessful)
         {
@@ -132,7 +150,7 @@ public class SpotifyService(
             return Result<string>.Success(spotifyUser.AccessToken);
         }
 
-        var refreshResult = await RefreshAccessToken(spotifyUser.RefreshToken);
+        var refreshResult = await RefreshAccessToken(spotifyUser);
         if (refreshResult.IsFailure)
         {
             return Result<string>.Failure(refreshResult.Error);
@@ -167,5 +185,25 @@ public class SpotifyService(
         }
 
         return Result<SpotifyRecentlyPlayedTracksResponse>.Success(response.Content);
+    }
+
+    public async Task<Result<SpotifyTokenResponse>> ExchangeCodePKCE(string code, string codeVerifier, string clientId)
+    {
+        var response = await spotifyAccountApi.RequestPKCEAccessToken(
+            new SpotifyPKCEAccessTokenRequest
+            {
+                Code = code,
+                RedirectUri = _spotifySettings.RedirectUrl,
+                ClientId = clientId,
+                CodeVerifier = codeVerifier,
+            }
+        );
+        if (!response.IsSuccessful)
+        {
+            logger.LogError("Failed to exchange PKCE code for tokens. Error: {ex}", response.Error);
+            return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.TokenExchangeFailed);
+        }
+
+        return Result<SpotifyTokenResponse>.Success(response.Content);
     }
 }
