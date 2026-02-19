@@ -1,3 +1,5 @@
+using Listenfy.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
@@ -5,7 +7,8 @@ using NetCord.Rest;
 
 namespace Listenfy.Application.Events;
 
-public class MessageCreateHandler(GatewayClient gatewayClient, ILogger<MessageCreateHandler> logger) : IGuildCreateGatewayHandler
+public class MessageCreateHandler(GatewayClient gatewayClient, IServiceProvider serviceProvider, ILogger<MessageCreateHandler> logger)
+    : IGuildCreateGatewayHandler
 {
     public async ValueTask HandleAsync(GuildCreateEventArgs args)
     {
@@ -17,6 +20,17 @@ public class MessageCreateHandler(GatewayClient gatewayClient, ILogger<MessageCr
         }
 
         logger.LogInformation("Bot added to guild: {GuildName} ({GuildId})", guild.Name, guild.Id);
+
+        // Check if welcome message has already been sent
+        using var scope = serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var guildSettings = await dbContext.GuildSettings.FirstOrDefaultAsync(x => x.DiscordGuildId == guild.Id);
+        if (guildSettings?.HasSentWelcomeMessage == true)
+        {
+            logger.LogInformation("Welcome message already sent for guild {GuildId}, skipping", guild.Id);
+            return;
+        }
+
         try
         {
             // Try to send message to system channel first
@@ -76,6 +90,15 @@ public class MessageCreateHandler(GatewayClient gatewayClient, ILogger<MessageCr
 
                 await textChannel.SendMessageAsync(new MessageProperties { Embeds = embeds });
                 logger.LogInformation("Welcome message sent successfully to guild {GuildId}", guild.Id);
+
+                // Mark welcome message as sent
+                if (guildSettings is not null)
+                {
+                    guildSettings.HasSentWelcomeMessage = true;
+                    dbContext.GuildSettings.Update(guildSettings);
+                    await dbContext.SaveChangesAsync();
+                    logger.LogInformation("Marked welcome message as sent for guild {GuildId}", guild.Id);
+                }
             }
         }
         catch (Exception ex)
