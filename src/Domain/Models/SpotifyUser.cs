@@ -6,6 +6,7 @@ namespace Listenfy.Domain.Models;
 public class SpotifyUser : BaseEntity
 {
     public required string SpotifyUserId { get; set; } // Spotify's ID, unique
+    public string? ClientId { get; set; } // The user's application client ID
     public required string AccessToken { get; set; }
     public required string RefreshToken { get; set; }
     public required DateTime TokenExpiresAt { get; set; }
