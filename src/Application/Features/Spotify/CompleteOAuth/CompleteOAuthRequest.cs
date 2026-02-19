@@ -62,6 +62,7 @@ public class Handler(
                 SpotifyUserId = profile.Id,
                 AccessToken = tokenResponse.AccessToken,
                 RefreshToken = tokenResponse.RefreshToken,
+                ClientId = request.ClientId,
                 TokenExpiresAt = timeProvider.GetUtcNow().UtcDateTime.AddSeconds(tokenResponse.ExpiresIn),
             };
 
@@ -73,6 +74,7 @@ public class Handler(
         {
             spotifyUser.AccessToken = tokenResponse.AccessToken;
             spotifyUser.RefreshToken = tokenResponse.RefreshToken;
+            spotifyUser.ClientId = request.ClientId;
             spotifyUser.TokenExpiresAt = timeProvider.GetUtcNow().UtcDateTime.AddSeconds(tokenResponse.ExpiresIn);
 
             await dbContext.SaveChangesAsync(cancellationToken);
