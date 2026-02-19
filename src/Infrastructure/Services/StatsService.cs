@@ -368,7 +368,7 @@ public class StatsService(
 
         return new EmbedProperties
         {
-            Title = isLast7Days ? "last 7 days" : "Weekly Music Roundup",
+            Title = isLast7Days ? "Last 7 days" : "Weekly Music Roundup",
             Description = description.ToString(),
             Color = new Color(30, 215, 96), // Spotify green
             Timestamp = timeProvider.GetUtcNow().DateTime,
