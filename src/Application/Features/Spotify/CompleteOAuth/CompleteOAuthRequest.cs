@@ -10,13 +10,14 @@ using Listenfy.Shared.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Listenfy.Application.Features.Spotify;
+namespace Listenfy.Application.Features.Spotify.CompleteOAuth;
 
-public class OAuthCallbackRequest : IRequest<Result<OAuthResponse>>
+public class CompleteOAuthRequest : IRequest<Result<OAuthResponse>>
 {
-    public required string Code { get; set; }
-    public required string State { get; set; }
-    public string? Error { get; set; }
+    public string Code { get; set; } = null!;
+    public string State { get; set; } = null!;
+    public string CodeVerifier { get; set; } = null!;
+    public string ClientId { get; set; } = null!;
 }
 
 public class Handler(
@@ -26,35 +27,20 @@ public class Handler(
     TimeProvider timeProvider,
     IBackgroundJobClient backgroundJobClient,
     ILogger<Handler> logger
-) : IRequestHandler<OAuthCallbackRequest, Result<OAuthResponse>>
+) : IRequestHandler<CompleteOAuthRequest, Result<OAuthResponse>>
 {
-    public async Task<Result<OAuthResponse>> Handle(OAuthCallbackRequest request, CancellationToken cancellationToken)
+    public async Task<Result<OAuthResponse>> Handle(CompleteOAuthRequest request, CancellationToken cancellationToken)
     {
-        if (request.Error is not null)
-        {
-            var connectionToDelete = await dbContext
-                .UserConnections.Include(u => u.Guild)
-                .FirstOrDefaultAsync(u => u.OAuthState == request.State && u.SpotifyUserId == null, cancellationToken: cancellationToken);
-            if (connectionToDelete is not null)
-            {
-                logger.LogWarning("User denied Spotify OAuth access. Error: {Error}, State: {State}", request.Error, request.State);
-                dbContext.UserConnections.Remove(connectionToDelete);
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-
-            return Result<OAuthResponse>.Failure(Errors.Spotify.AuthDenied);
-        }
-
         var userConnection = await dbContext
             .UserConnections.Include(u => u.Guild)
-            .FirstOrDefaultAsync(u => u.OAuthState == request.State && u.SpotifyUserId == null);
+            .FirstOrDefaultAsync(u => u.OAuthState == request.State && u.SpotifyUserId == null, cancellationToken: cancellationToken);
         if (userConnection is null)
         {
             logger.LogWarning("No pending UserConnection found for state: {State}", request.State);
             return Result<OAuthResponse>.Failure(Errors.Spotify.AuthTimedOut);
         }
 
-        var tokenResult = await spotifyService.ExchangeCodeForTokens(request.Code);
+        var tokenResult = await spotifyService.ExchangeCodePKCE(request.Code, request.CodeVerifier, request.ClientId);
         if (tokenResult.IsFailure)
         {
             return Result<OAuthResponse>.Failure(tokenResult.Error);
@@ -111,7 +97,6 @@ public class Handler(
 
         // immediately fetch listening data so stats are available faster, instead of waiting for the next scheduled job run
         backgroundJobClient.Enqueue<FetchListeningDataJob>(job => job.ExecuteForUserAsync(spotifyUser.Id));
-
         return Result<OAuthResponse>.Success(
             new OAuthResponse
             {
@@ -123,11 +108,13 @@ public class Handler(
     }
 }
 
-public class Validator : AbstractValidator<OAuthCallbackRequest>
+public class Validator : AbstractValidator<CompleteOAuthRequest>
 {
     public Validator()
     {
-        RuleFor(x => x.Code).NotEmpty().When(x => x.Error is null);
+        RuleFor(x => x.Code).NotEmpty();
         RuleFor(x => x.State).NotEmpty();
+        RuleFor(x => x.CodeVerifier).NotEmpty();
+        RuleFor(x => x.ClientId).NotEmpty();
     }
 }

@@ -31,13 +31,31 @@ public class SpotifyProfile
 public class SpotifyAccessTokenRequest
 {
     [AliasAs("grant_type")]
-    public required string GrantType { get; set; }
+    public string GrantType { get; set; } = "authorization_code";
 
     [AliasAs("code")]
     public required string Code { get; set; }
 
     [AliasAs("redirect_uri")]
     public required string RedirectUri { get; set; }
+}
+
+public class SpotifyPKCEAccessTokenRequest
+{
+    [AliasAs("grant_type")]
+    public string GrantType { get; set; } = "authorization_code";
+
+    [AliasAs("code")]
+    public required string Code { get; set; }
+
+    [AliasAs("redirect_uri")]
+    public required string RedirectUri { get; set; }
+
+    [AliasAs("client_id")]
+    public required string ClientId { get; set; }
+
+    [AliasAs("code_verifier")]
+    public required string CodeVerifier { get; set; }
 }
 
 public class SpotifyRefreshTokenRequest
