@@ -127,7 +127,7 @@ public class Validator : AbstractValidator<OAuthCallbackRequest>
 {
     public Validator()
     {
-        RuleFor(x => x.Code).NotEmpty();
+        RuleFor(x => x.Code).NotEmpty().When(x => x.Error is null);
         RuleFor(x => x.State).NotEmpty();
     }
 }
