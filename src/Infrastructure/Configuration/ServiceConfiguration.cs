@@ -16,6 +16,7 @@ internal static class ServiceConfiguration
     /// <param name="services"></param>
     public static void RegisterServices(this IServiceCollection services)
     {
+        services.AddMemoryCache();
         services.AddScoped<ISpotifyService, SpotifyService>();
         services.AddScoped<IStatsService, StatsService>();
         services.AddScoped<INotificationService, NotificationService>();

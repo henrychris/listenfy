@@ -8,16 +8,23 @@ using Listenfy.Shared;
 using Listenfy.Shared.Errors;
 using Listenfy.Shared.Results;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
 
 namespace Listenfy.Infrastructure.Services;
 
-public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvider, IOptions<SpotifySettings> options, ILogger<StatsService> logger)
-    : IStatsService
+public class StatsService(
+    ApplicationDbContext dbContext,
+    TimeProvider timeProvider,
+    IOptions<SpotifySettings> options,
+    IMemoryCache memoryCache,
+    ILogger<StatsService> logger
+) : IStatsService
 {
     private readonly SpotifySettings _spotifySettings = options.Value;
+    private readonly IMemoryCache _memoryCache = memoryCache;
 
     public async Task<Result<UserWeeklyStatsDto>> GetUserWeeklyStats(ulong discordGuildId, ulong discordUserId)
     {
@@ -191,6 +198,90 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
         );
     }
 
+    public async Task<Result<GuildWeeklyStatsDto>> GetGuildLast7DaysStats(ulong discordGuildId)
+    {
+        var cacheKey = $"guild-last7days-stats:{discordGuildId}";
+        if (_memoryCache.TryGetValue(cacheKey, out GuildWeeklyStatsDto? cachedStats) && cachedStats is not null)
+        {
+            logger.LogInformation("Returning cached last 7 days stats for guild {GuildId}", discordGuildId);
+            return Result<GuildWeeklyStatsDto>.Success(cachedStats);
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var startDate = now.AddDays(-7);
+
+        var userConnections = await dbContext
+            .UserConnections.Include(uc => uc.SpotifyUser!)
+            .Where(uc => uc.Guild.DiscordGuildId == discordGuildId && uc.SpotifyUser != null)
+            .ToListAsync();
+
+        var userStats = new List<UserWeeklyStatsDto>();
+        foreach (var connection in userConnections)
+        {
+            var spotifyUser = connection.SpotifyUser;
+            if (spotifyUser is null)
+            {
+                continue;
+            }
+
+            var weeklyStats = await ComputeUserWeeklyStats(spotifyUser, startDate, now);
+            if (weeklyStats is null)
+            {
+                continue;
+            }
+
+            userStats.Add(
+                new UserWeeklyStatsDto
+                {
+                    DiscordUserId = connection.DiscordUserId,
+                    WeekIdentifier = "Last 7 Days",
+                    WeekStartDate = startDate,
+                    WeekEndDate = now,
+                    TopTracks = weeklyStats
+                        .TopTracks.Select(t => new TopTrackDto
+                        {
+                            Id = t.Id,
+                            Name = t.Name,
+                            ArtistDisplay = t.ArtistDisplay,
+                            PlayCount = t.PlayCount,
+                        })
+                        .ToList(),
+                    TopArtists = weeklyStats
+                        .TopArtists.Select(a => new TopArtistDto
+                        {
+                            Id = a.Id,
+                            Name = a.Name,
+                            PlayCount = a.PlayCount,
+                        })
+                        .ToList(),
+                    TotalMinutesListened = weeklyStats.TotalMinutesListened,
+                    TotalTracksPlayed = weeklyStats.TotalTracksPlayed,
+                    UniqueTracksPlayed = weeklyStats.UniqueTracksPlayed,
+                    IncludesEarliestData = false,
+                }
+            );
+        }
+
+        var topUsers = userStats.OrderByDescending(u => u.TotalMinutesListened).Take(StatMenuConstants.TOP_USERS_TO_SHOW).ToList();
+        if (topUsers.Count == 0)
+        {
+            logger.LogInformation("No last 7 days stats found for guild {GuildId}", discordGuildId);
+            return Result<GuildWeeklyStatsDto>.Failure(Errors.Stats.NoServerStatsAvailable);
+        }
+
+        var result = new GuildWeeklyStatsDto
+        {
+            WeekIdentifier = "Last 7 Days",
+            WeekStartDate = startDate,
+            WeekEndDate = now,
+            UserStats = topUsers,
+        };
+
+        logger.LogInformation("Caching last 7 days stats for guild {GuildId} with {UserCount} users", discordGuildId, topUsers.Count);
+        _memoryCache.Set(cacheKey, result, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) });
+        return Result<GuildWeeklyStatsDto>.Success(result);
+    }
+
     public EmbedProperties BuildUserStatsEmbed(UserWeeklyStatsDto stats)
     {
         var description = new StringBuilder();
@@ -244,7 +335,7 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
         };
     }
 
-    public EmbedProperties BuildGuildStatsEmbed(GuildWeeklyStatsDto guildStats)
+    public EmbedProperties BuildGuildStatsEmbed(GuildWeeklyStatsDto guildStats, bool isLast7Days)
     {
         var description = new StringBuilder();
         description.AppendLine($"📊 **Weekly Listening Stats - {guildStats.WeekIdentifier}**\n");
@@ -277,7 +368,7 @@ public class StatsService(ApplicationDbContext dbContext, TimeProvider timeProvi
 
         return new EmbedProperties
         {
-            Title = "🎧 Weekly Music Roundup",
+            Title = isLast7Days ? "last 7 days" : "Weekly Music Roundup",
             Description = description.ToString(),
             Color = new Color(30, 215, 96), // Spotify green
             Timestamp = timeProvider.GetUtcNow().DateTime,

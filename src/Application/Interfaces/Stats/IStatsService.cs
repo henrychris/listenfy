@@ -17,6 +17,11 @@ public interface IStatsService
     Task<Result<GuildWeeklyStatsDto>> GetGuildWeeklyStats(ulong guildId);
 
     /// <summary>
+    /// Gets rolling last 7 days stats for all users in a guild.
+    /// </summary>
+    Task<Result<GuildWeeklyStatsDto>> GetGuildLast7DaysStats(ulong guildId);
+
+    /// <summary>
     /// Builds a formatted Discord embed for a user's personal weekly stats.
     /// </summary>
     EmbedProperties BuildUserStatsEmbed(UserWeeklyStatsDto stats);
@@ -24,5 +29,5 @@ public interface IStatsService
     /// <summary>
     /// Builds a formatted Discord embed for guild-wide weekly stats (top 5 users).
     /// </summary>
-    EmbedProperties BuildGuildStatsEmbed(GuildWeeklyStatsDto guildStats);
+    EmbedProperties BuildGuildStatsEmbed(GuildWeeklyStatsDto guildStats, bool isLast7Days);
 }

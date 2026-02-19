@@ -55,7 +55,7 @@ public class SendWeeklyStatsJob(
         }
 
         var guildStats = guildStatsResult.Value;
-        var embed = statsService.BuildGuildStatsEmbed(guildStats);
+        var embed = statsService.BuildGuildStatsEmbed(guildStats, false);
 
         try
         {
