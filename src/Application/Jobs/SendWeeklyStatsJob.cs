@@ -1,4 +1,5 @@
 using Listenfy.Application.Interfaces.Stats;
+using Listenfy.Domain.Models;
 using Listenfy.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
@@ -20,7 +21,7 @@ public class SendWeeklyStatsJob(
 
         // Get all guilds with enabled stats and configured channels
         var guildsWithStats = await dbContext.GuildSettings.Where(g => g.IsEnabled && g.StatsChannelId != null).ToListAsync();
-        logger.LogInformation("Found {Count} guilds with stats enabled", guildsWithStats.Count);
+        logger.LogInformation("Found guilds with stats enabled. Context: {@Context}", new { NumberOfGuilds = guildsWithStats.Count });
 
         var sentCount = 0;
         var errorCount = 0;
@@ -38,19 +39,22 @@ public class SendWeeklyStatsJob(
             catch (Exception ex)
             {
                 errorCount++;
-                logger.LogError(ex, "Error sending weekly stats to guild {GuildId}", guild.DiscordGuildId);
+                logger.LogError(ex, "Error sending weekly stats to guild. Context: {@Context}", new { GuildId = guild.DiscordGuildId });
             }
         }
 
-        logger.LogInformation("Completed SendWeeklyStatsJob. Sent: {Sent}, Errors: {Errors}", sentCount, errorCount);
+        logger.LogInformation("Completed SendWeeklyStatsJob. Context: {@Context}", new { Sent = sentCount, Errors = errorCount });
     }
 
-    private async Task<bool> SendGuildWeeklyStats(Domain.Models.GuildSettings guild)
+    private async Task<bool> SendGuildWeeklyStats(GuildSettings guild)
     {
         var guildStatsResult = await statsService.GetGuildWeeklyStats(guild.DiscordGuildId);
         if (guildStatsResult.IsFailure)
         {
-            logger.LogDebug("No users with stats for guild {GuildId}. Reason: {Reason}", guild.DiscordGuildId, guildStatsResult.Error.Description);
+            logger.LogError(
+                "No users with stats for guild. Context: {@Context}",
+                new { GuildId = guild.DiscordGuildId, Reason = guildStatsResult.Error.Description }
+            );
             return false;
         }
 
@@ -62,22 +66,32 @@ public class SendWeeklyStatsJob(
             var channel = await discordClient.Rest.GetChannelAsync(guild.StatsChannelId!.Value);
             if (channel is not TextChannel textChannel)
             {
-                logger.LogWarning("Stats channel {ChannelId} is not a text channel in guild {GuildId}", guild.StatsChannelId, guild.DiscordGuildId);
+                logger.LogError(
+                    "Stats channel is not a text channel in guild. Context: {@Context}",
+                    new { ChannelId = guild.StatsChannelId, GuildId = guild.DiscordGuildId }
+                );
                 return false;
             }
 
             await textChannel.SendMessageAsync(new MessageProperties { Embeds = [embed] });
             logger.LogInformation(
-                "Sent weekly stats to guild {GuildId}, channel {ChannelId}, users: {UserCount}",
-                guild.DiscordGuildId,
-                guild.StatsChannelId,
-                guildStats.UserStats.Count
+                "Sent weekly stats to guild. Context: {@Context}",
+                new
+                {
+                    GuildId = guild.DiscordGuildId,
+                    ChannelId = guild.StatsChannelId,
+                    UserCount = guildStats.UserStats.Count,
+                }
             );
             return true;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send message to channel {ChannelId} in guild {GuildId}", guild.StatsChannelId, guild.DiscordGuildId);
+            logger.LogError(
+                ex,
+                "Failed to send message to channel. Context: {@Context}",
+                new { ChannelId = guild.StatsChannelId, GuildId = guild.DiscordGuildId }
+            );
             return false;
         }
     }

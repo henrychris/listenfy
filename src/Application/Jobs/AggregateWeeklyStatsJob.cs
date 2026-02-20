@@ -14,15 +14,18 @@ public class AggregateWeeklyStatsJob(ApplicationDbContext dbContext, TimeProvide
         var (weekIdentifier, weekStart, weekEnd) = Utilities.CalculateCompletedWeek(now);
 
         logger.LogInformation(
-            "Computing stats for week {WeekIdentifier} ({WeekStart:yyyy-MM-dd} to {WeekEnd:yyyy-MM-dd})",
-            weekIdentifier,
-            weekStart,
-            weekEnd
+            "Computing stats for week. Context: {@Context}",
+            new
+            {
+                WeekIdentifier = weekIdentifier,
+                WeekStart = $"{weekStart:yyyy-MM-dd}",
+                WeekEnd = $"{weekEnd:yyyy-MM-dd}",
+            }
         );
 
         // todo: process in batch - eventually. heh.
         var spotifyUsers = await dbContext.SpotifyUsers.ToListAsync();
-        logger.LogInformation("Found {Count} Spotify users to process", spotifyUsers.Count);
+        logger.LogInformation("Found Spotify users to process. Context: {@Context}", new { NumberOfUsers = spotifyUsers.Count });
 
         var processedCount = 0;
         var skippedCount = 0;
@@ -43,11 +46,11 @@ public class AggregateWeeklyStatsJob(ApplicationDbContext dbContext, TimeProvide
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error processing weekly stats for SpotifyUser {SpotifyUserId}", user.SpotifyUserId);
+                logger.LogError(ex, "Error processing weekly stats for SpotifyUser. Context: {@Context}", new { user.SpotifyUserId });
             }
         }
 
-        logger.LogInformation("Completed AggregateWeeklyStatsJob. Processed: {Processed}, Skipped: {Skipped}", processedCount, skippedCount);
+        logger.LogInformation("Completed AggregateWeeklyStatsJob. Context: {@Context}", new { Processed = processedCount, Skipped = skippedCount });
     }
 
     private async Task<bool> ProcessUserWeeklyStats(SpotifyUser user, string weekIdentifier, DateTime weekStart, DateTime weekEnd)
@@ -56,11 +59,7 @@ public class AggregateWeeklyStatsJob(ApplicationDbContext dbContext, TimeProvide
         var existingStats = await dbContext.WeeklyStats.FirstOrDefaultAsync(ws => ws.SpotifyUserId == user.Id && ws.WeekIdentifier == weekIdentifier);
         if (existingStats is not null)
         {
-            logger.LogInformation(
-                "Stats already exist for user {SpotifyUserId}, week {WeekIdentifier}. Skipping.",
-                user.SpotifyUserId,
-                weekIdentifier
-            );
+            logger.LogInformation("Stats already exist for user. Context: {@Context}", new { user.SpotifyUserId, WeekIdentifier = weekIdentifier });
             return false;
         }
 
@@ -71,9 +70,8 @@ public class AggregateWeeklyStatsJob(ApplicationDbContext dbContext, TimeProvide
         if (listeningHistory.Count == 0)
         {
             logger.LogInformation(
-                "No listening history for user {SpotifyUserId} in week {WeekIdentifier}. Skipping.",
-                user.SpotifyUserId,
-                weekIdentifier
+                "No listening history for user. Context: {@Context}. Skipping.",
+                new { user.SpotifyUserId, WeekIdentifier = weekIdentifier }
             );
             return false;
         }
@@ -90,11 +88,14 @@ public class AggregateWeeklyStatsJob(ApplicationDbContext dbContext, TimeProvide
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation(
-            "Created weekly stats for user {SpotifyUserId}, week {WeekIdentifier}. Tracks: {TotalTracks}, Minutes: {TotalMinutes}",
-            user.SpotifyUserId,
-            weekIdentifier,
-            weeklyStat.TotalTracksPlayed,
-            weeklyStat.TotalMinutesListened
+            "Created weekly stats for user. Context: {@Context}",
+            new
+            {
+                user.SpotifyUserId,
+                WeekIdentifier = weekIdentifier,
+                TotalTracks = weeklyStat.TotalTracksPlayed,
+                TotalMinutes = weeklyStat.TotalMinutesListened,
+            }
         );
         return true;
     }

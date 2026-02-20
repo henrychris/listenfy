@@ -25,7 +25,7 @@ public class FetchListeningDataJob(
             .Include(u => u.UserConnections)
             .ThenInclude(uc => uc.Guild)
             .ToListAsync();
-        logger.LogInformation("Found {Count} Spotify users to process", spotifyUsers.Count);
+        logger.LogInformation("Found Spotify users to process. Context: {@Context}", new { NumberOfUsers = spotifyUsers.Count });
 
         foreach (var user in spotifyUsers)
         {
@@ -41,7 +41,7 @@ public class FetchListeningDataJob(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error processing listening history for SpotifyUser {SpotifyUserId}", user.SpotifyUserId);
+                logger.LogError(ex, "Error processing listening history for SpotifyUser. Context: {@Context}", new { user.SpotifyUserId });
             }
         }
 
@@ -50,7 +50,7 @@ public class FetchListeningDataJob(
 
     public async Task ExecuteForUserAsync(string spotifyUserId)
     {
-        logger.LogInformation("Starting FetchListeningDataJob for user {SpotifyUserId}", spotifyUserId);
+        logger.LogInformation("Starting FetchListeningDataJob for user. Context: {@Context}", new { SpotifyUserId = spotifyUserId });
 
         var user = await dbContext
             .SpotifyUsers.Include(u => u.SpotifyFetchMetadata)
@@ -59,7 +59,7 @@ public class FetchListeningDataJob(
             .FirstOrDefaultAsync(u => u.Id == spotifyUserId);
         if (user is null)
         {
-            logger.LogWarning("SpotifyUser not found for id {SpotifyUserId}", spotifyUserId);
+            logger.LogWarning("SpotifyUser not found. Context: {@Context}", new { SpotifyUserId = spotifyUserId });
             return;
         }
 
@@ -75,15 +75,15 @@ public class FetchListeningDataJob(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error processing listening history for SpotifyUser {SpotifyUserId}", user.SpotifyUserId);
+            logger.LogError(ex, "Error processing listening history for SpotifyUser. Context: {@Context}", new { user.SpotifyUserId });
         }
 
-        logger.LogInformation("Completed FetchListeningDataJob for user {SpotifyUserId}", spotifyUserId);
+        logger.LogInformation("Completed FetchListeningDataJob for user. Context: {@Context}", new { SpotifyUserId = spotifyUserId });
     }
 
     private async Task ProcessUserListeningHistory(SpotifyUser user)
     {
-        logger.LogInformation("Processing user {SpotifyUserId}", user.SpotifyUserId);
+        logger.LogInformation("Processing user. Context: {@Context}", new { SpotifyUserId = user.SpotifyUserId });
 
         var metadata = user.SpotifyFetchMetadata;
         if (metadata is null)
@@ -98,7 +98,7 @@ public class FetchListeningDataJob(
 
     private async Task ProcessFirstTimeFetch(SpotifyUser user)
     {
-        logger.LogInformation("First-time fetch for user {SpotifyUserId}", user.SpotifyUserId);
+        logger.LogInformation("First-time fetch for user. Context: {@Context}", new { user.SpotifyUserId });
 
         var result = await spotifyService.GetRecentlyPlayedTracks(user);
         if (result.IsFailure)
@@ -111,9 +111,8 @@ public class FetchListeningDataJob(
             }
 
             logger.LogError(
-                "Failed to fetch recently played tracks for user {SpotifyUserId}. Error: {Error}",
-                user.SpotifyUserId,
-                result.Error.Description
+                "Failed to fetch recently played tracks for user. Context: {@Context}.",
+                new { user.SpotifyUserId, Error = result.Error.Description }
             );
             return;
         }
@@ -122,7 +121,7 @@ public class FetchListeningDataJob(
         var items = response.Items;
         if (items.Count == 0)
         {
-            logger.LogInformation("No tracks available for first-time fetch for user {SpotifyUserId}", user.SpotifyUserId);
+            logger.LogWarning("No tracks available for first-time fetch for user. Context: {@Context}", new { user.SpotifyUserId });
 
             var metadata = new SpotifyFetchMetadata
             {
@@ -135,11 +134,14 @@ public class FetchListeningDataJob(
             return;
         }
 
-        logger.LogInformation("Found {Count} tracks for first-time fetch for user {SpotifyUserId}", items.Count, user.SpotifyUserId);
+        logger.LogInformation(
+            "Found tracks for first-time fetch for user. Context: {@Context}",
+            new { user.SpotifyUserId, NumberOfTracks = items.Count }
+        );
         var listeningHistories = await BuildNewListeningHistories(user, items);
         if (listeningHistories.Count == 0)
         {
-            logger.LogInformation("All fetched tracks already stored for user {SpotifyUserId}", user.SpotifyUserId);
+            logger.LogInformation("All fetched tracks already stored for user. Context: {@Context}", new { user.SpotifyUserId });
         }
         else
         {
@@ -156,10 +158,13 @@ public class FetchListeningDataJob(
 
         await dbContext.SaveChangesAsync();
         logger.LogInformation(
-            "Saved {Count} tracks for user {SpotifyUserId}. Last fetched at: {LastFetchedAt}",
-            listeningHistories.Count,
-            user.SpotifyUserId,
-            newMetadata.LastFetchedAt
+            "Saved tracks for user. Context: {@Context}",
+            new
+            {
+                user.SpotifyUserId,
+                NumberOfTracks = listeningHistories.Count,
+                newMetadata.LastFetchedAt,
+            }
         );
     }
 
@@ -167,10 +172,13 @@ public class FetchListeningDataJob(
     {
         var afterTimestampMilliseconds = new DateTimeOffset(metadata.LastFetchedAt).ToUnixTimeMilliseconds();
         logger.LogInformation(
-            "Fetching tracks for user {SpotifyUserId} after timestamp {After}. Date: {Date}",
-            user.SpotifyUserId,
-            afterTimestampMilliseconds,
-            metadata.LastFetchedAt
+            "Fetching tracks for user. Context: {@Context}",
+            new
+            {
+                user.SpotifyUserId,
+                AfterTimestampInMilliseconds = afterTimestampMilliseconds,
+                metadata.LastFetchedAt,
+            }
         );
 
         var result = await spotifyService.GetRecentlyPlayedTracks(user, afterTimestampMilliseconds);
@@ -184,9 +192,8 @@ public class FetchListeningDataJob(
             }
 
             logger.LogError(
-                "Failed to fetch recently played tracks for user {SpotifyUserId}. Error: {Error}",
-                user.SpotifyUserId,
-                result.Error.Description
+                "Failed to fetch recently played tracks for user. Context: {@Context}.",
+                new { user.SpotifyUserId, Error = result.Error.Description }
             );
             return;
         }
@@ -195,20 +202,20 @@ public class FetchListeningDataJob(
         var items = response.Items;
         if (items.Count == 0)
         {
-            logger.LogInformation("No new tracks for user {SpotifyUserId}", user.SpotifyUserId);
+            logger.LogWarning("No new tracks for user. Context: {@Context}", new { user.SpotifyUserId });
             // Don't update LastFetchedAt if there are no new tracks - keep using the same cursor
             metadata.TracksFetchedInLastRun = 0;
             await dbContext.SaveChangesAsync();
             return;
         }
 
-        logger.LogInformation("Found {Count} new tracks for user {SpotifyUserId}", items.Count, user.SpotifyUserId);
+        logger.LogInformation("Found new tracks for user. Context: {@Context}", new { user.SpotifyUserId, NumberOfTracks = items.Count });
 
         // Save tracks to listening history
         var listeningHistories = await BuildNewListeningHistories(user, items);
         if (listeningHistories.Count == 0)
         {
-            logger.LogInformation("All fetched tracks already stored for user {SpotifyUserId}", user.SpotifyUserId);
+            logger.LogInformation("All fetched tracks already stored for user. Context: {@Context}", new { user.SpotifyUserId });
         }
         else
         {
@@ -220,27 +227,34 @@ public class FetchListeningDataJob(
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation(
-            "Saved {Count} tracks for user {SpotifyUserId}. Last fetched at: {LastFetchedAt}",
-            listeningHistories.Count,
-            user.SpotifyUserId,
-            metadata.LastFetchedAt
+            "Saved tracks for user. Context: {@Context}",
+            new
+            {
+                user.SpotifyUserId,
+                NumberOfTracks = listeningHistories.Count,
+                metadata.LastFetchedAt,
+            }
         );
     }
 
     private async Task HandleExpiredRefreshToken(SpotifyUser user)
     {
-        logger.LogWarning("Refresh token expired for SpotifyUser {SpotifyUserId}. Removing user connections.", user.SpotifyUserId);
+        logger.LogWarning("Refresh token expired for SpotifyUser. Removing user connections. Context: {@Context}.", new { user.SpotifyUserId });
 
         // Get all connections for this user (they may be connected to multiple guilds)
+        // todo: send a single DM if connected to multiple guilds instead of one DM per guild - would require grouping connections by DiscordUserId and aggregating guild info for the DM
         var connections = user.UserConnections.ToList();
         foreach (var connection in connections)
         {
             var guildName = connection.Guild?.GuildName ?? "Unknown Server";
             logger.LogInformation(
-                "Notifying Discord user {DiscordUserId} about expired token in guild {GuildName} ({GuildId})",
-                connection.DiscordUserId,
-                guildName,
-                connection.Guild?.DiscordGuildId ?? 0
+                "Notifying Discord user about expired token in guild. Context: {@Context}",
+                new
+                {
+                    connection.DiscordUserId,
+                    GuildName = guildName,
+                    GuildId = connection.Guild?.DiscordGuildId ?? 0,
+                }
             );
 
             // Notify the user via DM
@@ -250,7 +264,7 @@ public class FetchListeningDataJob(
         // Remove all connections for this user
         dbContext.UserConnections.RemoveRange(connections);
         await dbContext.SaveChangesAsync();
-        logger.LogInformation("Removed SpotifyUser {SpotifyUserId} and associated connections due to expired token", user.SpotifyUserId);
+        logger.LogInformation("Removed SpotifyUser. Context: {@Context}", new { user.SpotifyUserId });
     }
 
     private DateTime GetLastFetchedTimestamp(SpotifyRecentlyPlayedTracksResponse response, List<SpotifyRecentlyPlayedItem> items)
@@ -259,13 +273,13 @@ public class FetchListeningDataJob(
         {
             var cursorTimestamp = long.Parse(response.Cursors.After);
             var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(cursorTimestamp).UtcDateTime;
-            logger.LogInformation("Using cursor timestamp {Timestamp} ({DateTime})", response.Cursors.After, timestamp);
+            logger.LogInformation("Using cursor timestamp. Context: {@Context}", new { Cursor = response.Cursors.After, Timestamp = timestamp });
             return timestamp;
         }
 
         var mostRecentTrack = items.OrderByDescending(i => DateTime.Parse(i.PlayedAt)).First();
         var fallbackTimestamp = DateTime.Parse(mostRecentTrack.PlayedAt);
-        logger.LogInformation("No cursor in response, using most recent track timestamp: {DateTime}", fallbackTimestamp);
+        logger.LogInformation("No cursor in response, using most recent track timestamp. Context: {@Context}", new { Timestamp = fallbackTimestamp });
         return fallbackTimestamp;
     }
 

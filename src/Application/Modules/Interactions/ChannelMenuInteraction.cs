@@ -25,40 +25,71 @@ public class ChannelMenuInteraction(ApplicationDbContext dbContext, ILogger<Conf
 
             if (!guildId.HasValue)
             {
-                logger.LogWarning("SetChannelFromMenu command invoked outside of a server");
+                logger.LogError(
+                    "SetChannelFromMenu command invoked outside of a server. Context: {@Context}",
+                    new
+                    {
+                        DiscordUserId = user.Id,
+                        GuildId = guildId,
+                        ChannelId = Context.Channel.Id,
+                    }
+                );
                 await InteractionGuards.BlockUsageOutsideServerAsync(Context);
                 return;
             }
 
             logger.LogInformation(
-                "SetChannelFromMenu command started. GuildId: {GuildId}, UserId: {UserId}, ChannelId: {ChannelId}",
-                guildId.Value,
-                user.Id,
-                Context.Channel.Id
+                "SetChannelFromMenu command started. Context: {@Context}",
+                new
+                {
+                    GuildId = guildId.Value,
+                    DiscordUserId = user.Id,
+                    ChannelId = Context.Channel.Id,
+                }
             );
 
             var settings = await dbContext.GuildSettings.FirstOrDefaultAsync(g => g.DiscordGuildId == guildId.Value);
             if (settings is null)
             {
-                logger.LogInformation("Creating new GuildSettings for GuildId: {GuildId}", guildId.Value);
+                logger.LogInformation(
+                    "Creating new GuildSettings. Context: {@Context}",
+                    new { GuildId = guildId.Value, GuildName = Context.Guild?.Name ?? "Unknown Guild" }
+                );
                 settings = new GuildSettings { DiscordGuildId = guildId.Value, GuildName = Context.Guild?.Name ?? "Unknown Guild" };
                 dbContext.GuildSettings.Add(settings);
             }
             else
             {
-                logger.LogInformation("Updating existing GuildSettings for GuildId: {GuildId}", guildId.Value);
+                logger.LogInformation("Existing GuildSettings found. Context: {@Context}", new { GuildId = guildId.Value, settings.GuildName });
             }
 
             var selectedChannel = Context.SelectedValues[0];
             if (selectedChannel is null)
             {
+                logger.LogError(
+                    "No channel selected in dropdown. Context: {@Context}",
+                    new
+                    {
+                        GuildId = guildId.Value,
+                        DiscordUserId = user.Id,
+                        ChannelId = Context.Channel.Id,
+                    }
+                );
                 await RespondAsync(InteractionCallback.Message("❌ Select a channel."));
                 return;
             }
 
             settings.StatsChannelId = selectedChannel.Id;
             await dbContext.SaveChangesAsync();
-            logger.LogInformation("Stats channel successfully set to {ChannelId} for GuildId: {GuildId}", selectedChannel.Id, guildId.Value);
+            logger.LogInformation(
+                "Stats channel successfully set. Context: {@Context}",
+                new
+                {
+                    GuildId = guildId.Value,
+                    DiscordUserId = user.Id,
+                    ChannelId = selectedChannel.Id,
+                }
+            );
 
             await RespondAsync(InteractionCallback.Message($"✅ Weekly stats will now be posted in <#{selectedChannel.Id}>"));
         }
@@ -66,9 +97,13 @@ public class ChannelMenuInteraction(ApplicationDbContext dbContext, ILogger<Conf
         {
             logger.LogError(
                 ex,
-                "Error occurred while setting stats channel. GuildId: {GuildId}, UserId: {UserId}",
-                Context.Interaction.GuildId?.ToString() ?? "null",
-                Context.Interaction.User.Id
+                "Error occurred while setting stats channel. Context: {@Context}",
+                new
+                {
+                    GuildId = Context.Interaction.GuildId?.ToString() ?? "null",
+                    DiscordUserId = Context.Interaction.User.Id,
+                    ChannelId = Context.Channel.Id,
+                }
             );
             await RespondAsync(InteractionCallback.Message($"❌ An error occurred while setting the stats channel. Try again?"));
             throw;

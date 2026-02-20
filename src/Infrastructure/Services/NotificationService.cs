@@ -13,12 +13,12 @@ public class NotificationService(GatewayClient discordClient, ILogger<Notificati
             var user = await discordClient.Rest.GetUserAsync(userId);
             var dmChannel = await user.GetDMChannelAsync();
             await dmChannel.SendMessageAsync(new MessageProperties { Content = message });
-            logger.LogInformation("Sent DM to user {UserId}", userId);
+            logger.LogInformation("Sent DM to user. Context: {@Context}", new { UserId = userId, DmChannelId = dmChannel.Id });
             return true;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send DM to user {UserId}", userId);
+            logger.LogError(ex, "Failed to send DM to user. Context: {@Context}", new { UserId = userId });
             return false;
         }
     }
