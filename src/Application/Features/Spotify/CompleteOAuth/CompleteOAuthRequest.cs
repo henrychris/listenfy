@@ -36,7 +36,7 @@ public class Handler(
             .FirstOrDefaultAsync(u => u.OAuthState == request.State && u.SpotifyUserId == null, cancellationToken: cancellationToken);
         if (userConnection is null)
         {
-            logger.LogWarning("No pending UserConnection found for state: {State}", request.State);
+            logger.LogError("No pending UserConnection found. Context: {@Context}", new { request.State });
             return Result<OAuthResponse>.Failure(Errors.Spotify.AuthTimedOut);
         }
 
@@ -68,7 +68,7 @@ public class Handler(
 
             dbContext.SpotifyUsers.Add(spotifyUser);
             await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Created new SpotifyUser: {SpotifyId}", profile.Id);
+            logger.LogInformation("Created new SpotifyUser. Context: {@Context}", new { SpotifyUserId = profile.Id });
         }
         else
         {
@@ -78,7 +78,7 @@ public class Handler(
             spotifyUser.TokenExpiresAt = timeProvider.GetUtcNow().UtcDateTime.AddSeconds(tokenResponse.ExpiresIn);
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Updated existing SpotifyUser tokens: {SpotifyId}", profile.Id);
+            logger.LogInformation("Updated existing SpotifyUser tokens. Context: {@Context}", new { SpotifyUserId = profile.Id });
         }
 
         userConnection.SpotifyUserId = spotifyUser.Id;
@@ -86,11 +86,7 @@ public class Handler(
         userConnection.ConnectedAt = timeProvider.GetUtcNow().UtcDateTime;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation(
-            "Completed OAuth flow for Discord user {DiscordUserId} in guild {GuildId}",
-            userConnection.DiscordUserId,
-            userConnection.Guild.DiscordGuildId
-        );
+        logger.LogInformation("Completed OAuth flow. Context: {@Context}", new { userConnection.DiscordUserId, userConnection.Guild.DiscordGuildId });
 
         // Notify the user via Discord DM that connection was successful
         backgroundJobClient.Enqueue(

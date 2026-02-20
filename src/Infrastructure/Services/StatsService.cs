@@ -34,12 +34,24 @@ public class StatsService(
             .FirstOrDefaultAsync(uc => uc.Guild.DiscordGuildId == discordGuildId && uc.DiscordUserId == discordUserId && uc.SpotifyUser != null);
         if (userConnection?.SpotifyUser is null)
         {
-            logger.LogDebug("No Spotify connection found for user {UserId} in guild {GuildId}", discordUserId, discordGuildId);
+            logger.LogError(
+                "No Spotify connection found for user. Context: {@Context}",
+                new { DiscordUserId = discordUserId, DiscordGuildId = discordGuildId }
+            );
             return Result<UserWeeklyStatsDto>.Failure(Errors.Stats.NotConnected);
         }
 
         var spotifyUser = userConnection.SpotifyUser;
-        logger.LogInformation("Computing stats for user {UserId} in guild {GuildId} for last 7 days.", discordUserId, discordGuildId);
+        logger.LogInformation(
+            "Computing stats for user in last 7 days. Context: {@Context}",
+            new
+            {
+                DiscordUserId = discordUserId,
+                DiscordGuildId = discordGuildId,
+                spotifyUser.SpotifyUserId,
+                InternalUserId = spotifyUser.Id,
+            }
+        );
 
         var endDate = now;
         var startDate = now.AddDays(-7);
@@ -53,7 +65,18 @@ public class StatsService(
             return Result<UserWeeklyStatsDto>.Failure(Errors.Stats.NoStatsAvailable(_spotifySettings.FetchDataJobIntervalInMinutes));
         }
 
-        logger.LogInformation("Computed stats for user {UserId} from {StartDate} to {EndDate}", discordUserId, startDate, endDate);
+        logger.LogInformation(
+            "Computed stats for user from {@StartDate} to {@EndDate}. Context: {@Context}",
+            $"{startDate:yyyy-MM-dd}",
+            $"{endDate:yyyy-MM-dd}",
+            new
+            {
+                DiscordUserId = discordUserId,
+                DiscordGuildId = discordGuildId,
+                spotifyUser.SpotifyUserId,
+                InternalUserId = spotifyUser.Id,
+            }
+        );
         return Result<UserWeeklyStatsDto>.Success(
             new UserWeeklyStatsDto
             {
@@ -95,10 +118,10 @@ public class StatsService(
         if (listeningHistory.Count == 0)
         {
             logger.LogInformation(
-                "No listening history for user {SpotifyUserId} between {StartDate} and {EndDate}.",
-                spotifyUser.SpotifyUserId,
-                startDate,
-                endDate
+                "No listening history for user between {@StartDate} and {@EndDate}. Context: {@Context}",
+                $"{startDate:yyyy-MM-dd}",
+                $"{endDate:yyyy-MM-dd}",
+                new { spotifyUser.SpotifyUserId, InternalUserId = spotifyUser.Id }
             );
             return null;
         }
@@ -109,10 +132,13 @@ public class StatsService(
         var weekIdentifier = $"Last 7 Days";
 
         logger.LogInformation(
-            "Computing stats for user {SpotifyUserId}. Actual data range: {ActualStart} to {ActualEnd}",
-            spotifyUser.SpotifyUserId,
-            actualStartDate,
-            actualEndDate
+            "Computing stats for user. Context: {@Context}",
+            new
+            {
+                ActualStart = actualStartDate,
+                ActualEnd = actualEndDate,
+                Context = new { spotifyUser.SpotifyUserId, InternalUserId = spotifyUser.Id },
+            }
         );
 
         return Utilities.CalculateWeeklyStat(
@@ -182,7 +208,10 @@ public class StatsService(
 
         if (usersWithStats.Count == 0)
         {
-            logger.LogDebug("No weekly stats found for guild {GuildId}, week {WeekId}", discordGuildId, weekIdentifier);
+            logger.LogError(
+                "No weekly stats found for guild. Context {@Context}",
+                new { DiscordGuildId = discordGuildId, WeekIdentifier = weekIdentifier }
+            );
             return Result<GuildWeeklyStatsDto>.Failure(Errors.Stats.NoServerStatsAvailable);
         }
 
@@ -203,7 +232,7 @@ public class StatsService(
         var cacheKey = $"guild-last7days-stats:{discordGuildId}";
         if (_memoryCache.TryGetValue(cacheKey, out GuildWeeklyStatsDto? cachedStats) && cachedStats is not null)
         {
-            logger.LogInformation("Returning cached last 7 days stats for guild {GuildId}", discordGuildId);
+            logger.LogInformation("Returning cached last 7 days stats for guild. Context: {@Context}", new { DiscordGuildId = discordGuildId });
             return Result<GuildWeeklyStatsDto>.Success(cachedStats);
         }
 
@@ -211,7 +240,7 @@ public class StatsService(
         var startDate = now.AddDays(-7);
 
         var userConnections = await dbContext
-            .UserConnections.Include(uc => uc.SpotifyUser!)
+            .UserConnections.Include(uc => uc.SpotifyUser)
             .Where(uc => uc.Guild.DiscordGuildId == discordGuildId && uc.SpotifyUser != null)
             .ToListAsync();
 
@@ -265,7 +294,7 @@ public class StatsService(
         var topUsers = userStats.OrderByDescending(u => u.TotalMinutesListened).Take(StatMenuConstants.TOP_USERS_TO_SHOW).ToList();
         if (topUsers.Count == 0)
         {
-            logger.LogInformation("No last 7 days stats found for guild {GuildId}", discordGuildId);
+            logger.LogError("No last 7 days stats found for guild. Context: {@Context}", new { DiscordGuildId = discordGuildId });
             return Result<GuildWeeklyStatsDto>.Failure(Errors.Stats.NoServerStatsAvailable);
         }
 
@@ -277,8 +306,11 @@ public class StatsService(
             UserStats = topUsers,
         };
 
-        logger.LogInformation("Caching last 7 days stats for guild {GuildId} with {UserCount} users", discordGuildId, topUsers.Count);
-        _memoryCache.Set(cacheKey, result, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) });
+        logger.LogInformation(
+            "Caching last 7 days stats for guild. Context: {@Context}",
+            new { DiscordGuildId = discordGuildId, UserCount = topUsers.Count }
+        );
+        _memoryCache.Set(cacheKey, result, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
         return Result<GuildWeeklyStatsDto>.Success(result);
     }
 

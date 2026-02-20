@@ -43,7 +43,7 @@ public class SpotifyService(
         );
         if (!response.IsSuccessful)
         {
-            logger.LogError("Failed to exchange code for tokens. Error: {ex}", response.Error);
+            logger.LogError(response.Error, "Failed to exchange code for tokens.");
             return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.TokenExchangeFailed);
         }
 
@@ -65,11 +65,11 @@ public class SpotifyService(
                     )
                 )
                 {
-                    logger.LogWarning("Spotify user not allowlisted. 403 Forbidden. Error: {ex}", response.Error);
+                    logger.LogError(response.Error, "Spotify user not allowlisted. 403 Forbidden.");
                     return Result<SpotifyProfile>.Failure(Errors.Spotify.NotAllowlisted);
                 }
             }
-            logger.LogError("Failed to get user profile. Error: {ex}", response.Error);
+            logger.LogError(response.Error, "Failed to get user profile.");
             return Result<SpotifyProfile>.Failure(Errors.Spotify.ProfileFetchFailed);
         }
 
@@ -80,7 +80,15 @@ public class SpotifyService(
     {
         if (!string.IsNullOrEmpty(spotifyUser.ClientId))
         {
-            logger.LogInformation("Refreshing access token using client credentials for Spotify user: {SpotifyUserId}", spotifyUser.Id);
+            logger.LogInformation(
+                "Refreshing access token using client credentials for Spotify user. Context: {@Context}",
+                new
+                {
+                    SpotifyUserId = spotifyUser.Id,
+                    spotifyUser.ClientId,
+                    InternalUserId = spotifyUser.Id,
+                }
+            );
             return await RefreshAccessTokenPKCE(spotifyUser.RefreshToken, spotifyUser.ClientId);
         }
 
@@ -100,11 +108,11 @@ public class SpotifyService(
         {
             if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
-                logger.LogWarning("Refresh token has expired or been revoked. Error: {ex}", response.Error);
+                logger.LogError(response.Error, "Refresh token has expired or been revoked");
                 return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.RefreshTokenExpired);
             }
 
-            logger.LogError("Failed to refresh access token. Error: {ex}", response.Error);
+            logger.LogError(response.Error, "Failed to refresh access token.");
             return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.TokenRefreshFailed);
         }
 
@@ -125,11 +133,11 @@ public class SpotifyService(
         {
             if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
-                logger.LogWarning("Refresh token has expired or been revoked. Error: {ex}", response.Error);
+                logger.LogError(response.Error, "Refresh token has expired or been revoked");
                 return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.RefreshTokenExpired);
             }
 
-            logger.LogError("Failed to refresh access token. Error: {ex}", response.Error);
+            logger.LogError(response.Error, "Failed to refresh access token.");
             return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.TokenRefreshFailed);
         }
 
@@ -162,7 +170,15 @@ public class SpotifyService(
         spotifyUser.TokenExpiresAt = now.AddSeconds(tokenResponse.ExpiresIn);
         await dbContext.SaveChangesAsync();
 
-        logger.LogInformation("Access token refreshed for spotify user: {SpotifyUserId}", spotifyUser.Id);
+        logger.LogInformation(
+            "Access token refreshed for spotify user. Context: {@Context}",
+            new
+            {
+                SpotifyUserId = spotifyUser.Id,
+                spotifyUser.ClientId,
+                InternalUserId = spotifyUser.Id,
+            }
+        );
         return Result<string>.Success(spotifyUser.AccessToken);
     }
 
@@ -180,7 +196,7 @@ public class SpotifyService(
         );
         if (!response.IsSuccessful)
         {
-            logger.LogError("Failed to fetch recently played tracks. Error: {ex}", response.Error);
+            logger.LogError(response.Error, "Failed to fetch recently played tracks.");
             return Result<SpotifyRecentlyPlayedTracksResponse>.Failure(Errors.Spotify.RecentlyPlayedTracksFetchFailed);
         }
 
@@ -200,7 +216,7 @@ public class SpotifyService(
         );
         if (!response.IsSuccessful)
         {
-            logger.LogError("Failed to exchange PKCE code for tokens. Error: {ex}", response.Error);
+            logger.LogError(response.Error, "Failed to exchange PKCE code for tokens.");
             return Result<SpotifyTokenResponse>.Failure(Errors.Spotify.TokenExchangeFailed);
         }
 

@@ -71,16 +71,22 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
 
             if (!guildId.HasValue)
             {
-                logger.LogWarning("SetChannel command invoked outside of a server");
+                logger.LogError(
+                    "SetChannel command invoked outside of a server. Context: {@Context}",
+                    new { GuildId = guildId, DiscordUserId = user.Id }
+                );
                 await InteractionGuards.BlockUsageOutsideServerAsync(Context);
                 return;
             }
 
             logger.LogInformation(
-                "SetChannel command started. GuildId: {GuildId}, UserId: {UserId}, ChannelId: {ChannelId}",
-                guildId.Value,
-                user.Id,
-                Context.Channel.Id
+                "SetChannel command started. Context: {@Context}",
+                new
+                {
+                    GuildId = guildId.Value,
+                    DiscordUserId = user.Id,
+                    ChannelId = Context.Channel.Id,
+                }
             );
             var message = new InteractionMessageProperties
             {
@@ -103,9 +109,13 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
         {
             logger.LogError(
                 ex,
-                "Error occurred while setting stats channel. GuildId: {GuildId}, UserId: {UserId}",
-                Context.Interaction.GuildId?.ToString() ?? "null",
-                Context.Interaction.User.Id
+                "Error occurred while setting stats channel. Context: {@Context}",
+                new
+                {
+                    GuildId = Context.Interaction.GuildId?.ToString() ?? "null",
+                    DiscordUserId = Context.Interaction.User.Id,
+                    ChannelId = Context.Channel.Id,
+                }
             );
             await RespondAsync(InteractionCallback.Message($"❌ An error occurred while setting the stats channel. Try again?"));
             throw;
@@ -122,17 +132,19 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
 
             if (!guildId.HasValue)
             {
-                logger.LogWarning("GetChannel command invoked outside of a server");
+                logger.LogError(
+                    "GetChannel command invoked outside of a server. Context: {@Context}",
+                    new { GuildId = guildId, DiscordUserId = user.Id }
+                );
                 await InteractionGuards.BlockUsageOutsideServerAsync(Context);
                 return;
             }
 
-            logger.LogInformation("GetChannel command started. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, user.Id);
-
+            logger.LogInformation("GetChannel command started. Context: {@Context}", new { GuildId = guildId.Value, DiscordUserId = user.Id });
             var settings = await dbContext.GuildSettings.FirstOrDefaultAsync(g => g.DiscordGuildId == guildId.Value);
             if (settings is null)
             {
-                logger.LogInformation("No GuildSettings found for GuildId: {GuildId}", guildId.Value);
+                logger.LogError("No GuildSettings found for Context: {@Context}", new { GuildId = guildId.Value, DiscordUserId = user.Id });
                 await RespondAsync(InteractionCallback.Message($"❌ This server has no stats channel set. Use `/setchannel`"));
                 return;
             }
@@ -143,16 +155,28 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
                 return;
             }
 
-            logger.LogInformation("Retrieved stats channel {ChannelId} for GuildId: {GuildId}", settings.StatsChannelId, guildId.Value);
+            logger.LogInformation(
+                "Retrieved stats channel for Context: {@Context}",
+                new
+                {
+                    GuildId = guildId.Value,
+                    DiscordUserId = user.Id,
+                    ChannelId = settings.StatsChannelId,
+                }
+            );
             await RespondAsync(InteractionCallback.Message($"✅ Weekly stats are currently being sent to <#{settings.StatsChannelId}>"));
         }
         catch (Exception ex)
         {
             logger.LogError(
                 ex,
-                "Error occurred while getting stats channel. GuildId: {GuildId}, UserId: {UserId}",
-                Context.Interaction.GuildId?.ToString() ?? "null",
-                Context.Interaction.User.Id
+                "Error occurred while getting stats channel. Context: {@Context}",
+                new
+                {
+                    GuildId = Context.Interaction.GuildId?.ToString() ?? "null",
+                    DiscordUserId = Context.Interaction.User.Id,
+                    ChannelId = Context.Channel.Id,
+                }
             );
             await RespondAsync(InteractionCallback.Message($"❌ An error occurred while getting the stats channel. Try again?"));
             throw;
@@ -173,31 +197,45 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
 
             if (!guildId.HasValue)
             {
-                logger.LogWarning("ClearChannel command invoked outside of a server");
+                logger.LogError(
+                    "ClearChannel command invoked outside of a server. Context: {@Context}",
+                    new { GuildId = guildId, DiscordUserId = user.Id }
+                );
                 await InteractionGuards.BlockUsageOutsideServerAsync(Context);
                 return;
             }
 
-            logger.LogInformation("ClearChannel command started. GuildId: {GuildId}, UserId: {UserId}", guildId.Value, user.Id);
-
+            logger.LogInformation("ClearChannel command started. Context: {@Context}", new { GuildId = guildId.Value, DiscordUserId = user.Id });
             var settings = await dbContext.GuildSettings.FirstOrDefaultAsync(g => g.DiscordGuildId == guildId.Value);
             if (settings is null)
             {
-                logger.LogInformation("No GuildSettings found for clearing. GuildId: {GuildId}", guildId.Value);
+                logger.LogError("No GuildSettings found for clearing. Context: {@Context}", new { GuildId = guildId.Value, DiscordUserId = user.Id });
                 await RespondAsync(InteractionCallback.Message($"❌ This server has no stats channel set. Use `/setchannel`"));
                 return;
             }
 
             logger.LogInformation(
-                "Clearing stats channel for GuildId: {GuildId}. Previous channel: {ChannelId}",
-                guildId.Value,
-                settings.StatsChannelId
+                "Clearing stats channel for Context: {@Context}",
+                new
+                {
+                    GuildId = guildId.Value,
+                    DiscordUserId = user.Id,
+                    ChannelId = settings.StatsChannelId,
+                }
             );
 
             settings.StatsChannelId = null;
             await dbContext.SaveChangesAsync();
-            logger.LogInformation("Stats channel successfully cleared for GuildId: {GuildId}", guildId.Value);
 
+            logger.LogInformation(
+                "Stats channel successfully cleared for Context: {@Context}",
+                new
+                {
+                    GuildId = guildId.Value,
+                    DiscordUserId = user.Id,
+                    ChannelId = settings.StatsChannelId,
+                }
+            );
             await RespondAsync(
                 InteractionCallback.Message($"✅ Stats channel has been cleared. Weekly stats will not be sent until you run `/setchannel` again.")
             );
@@ -206,9 +244,13 @@ public class ConfigurationModule(ApplicationDbContext dbContext, ILogger<Configu
         {
             logger.LogError(
                 ex,
-                "Error occurred while clearing stats channel. GuildId: {GuildId}, UserId: {UserId}",
-                Context.Interaction.GuildId?.ToString() ?? "null",
-                Context.Interaction.User.Id
+                "Error occurred while clearing stats channel. Context: {@Context}",
+                new
+                {
+                    GuildId = Context.Interaction.GuildId?.ToString() ?? "null",
+                    DiscordUserId = Context.Interaction.User.Id,
+                    ChannelId = Context.Channel.Id,
+                }
             );
             await RespondAsync(InteractionCallback.Message($"❌ An error occurred while clearing the stats channel. Try again?"));
             throw;
