@@ -15,11 +15,11 @@ public class MessageCreateHandler(GatewayClient gatewayClient, IServiceProvider 
         var guild = args.Guild;
         if (guild is null)
         {
-            logger.LogWarning("Received GuildCreate event with null guild");
+            logger.LogError("Received GuildCreate event with null guild");
             return;
         }
 
-        logger.LogInformation("Bot added to guild: {GuildName} ({GuildId})", guild.Name, guild.Id);
+        logger.LogInformation("Bot added to guild. Context: {@Context}", new { GuildName = guild.Name, DiscordGuildId = guild.Id });
 
         // Check if welcome message has already been sent
         using var scope = serviceProvider.CreateScope();
@@ -27,7 +27,7 @@ public class MessageCreateHandler(GatewayClient gatewayClient, IServiceProvider 
         var guildSettings = await dbContext.GuildSettings.FirstOrDefaultAsync(x => x.DiscordGuildId == guild.Id);
         if (guildSettings?.HasSentWelcomeMessage == true)
         {
-            logger.LogInformation("Welcome message already sent for guild {GuildId}, skipping", guild.Id);
+            logger.LogInformation("Welcome message already sent for guild. Context: {@Context}", new { DiscordGuildId = guild.Id });
             return;
         }
 
@@ -39,19 +39,25 @@ public class MessageCreateHandler(GatewayClient gatewayClient, IServiceProvider 
             // If no system channel, try to find first text channel we can send to
             if (!channelId.HasValue)
             {
-                logger.LogInformation("No system channel found for guild {GuildId}, searching for text channel", guild.Id);
+                logger.LogInformation("No system channel found for guild. Context: {@Context}", new { DiscordGuildId = guild.Id });
                 var channels = await guild.GetChannelsAsync();
                 var firstTextChannel = channels.OfType<TextGuildChannel>().FirstOrDefault();
                 if (firstTextChannel is null)
                 {
-                    logger.LogWarning("No suitable channel found to send welcome message in guild {GuildId}", guild.Id);
+                    logger.LogError(
+                        "No suitable channel found to send welcome message in guild. Context: {@Context}",
+                        new { DiscordGuildId = guild.Id }
+                    );
                     return;
                 }
 
                 channelId = firstTextChannel.Id;
             }
 
-            logger.LogInformation("Sending welcome message to channel {ChannelId} in guild {GuildId}", channelId.Value, guild.Id);
+            logger.LogInformation(
+                "Sending welcome message to channel. Context: {@Context}",
+                new { ChannelId = channelId.Value, DiscordGuildId = guild.Id }
+            );
 
             var channel = await gatewayClient.Rest.GetChannelAsync(channelId.Value);
             if (channel is TextChannel textChannel)
@@ -89,7 +95,7 @@ public class MessageCreateHandler(GatewayClient gatewayClient, IServiceProvider 
                 };
 
                 await textChannel.SendMessageAsync(new MessageProperties { Embeds = embeds });
-                logger.LogInformation("Welcome message sent successfully to guild {GuildId}", guild.Id);
+                logger.LogInformation("Welcome message sent successfully to guild. Context: {@Context}", new { DiscordGuildId = guild.Id });
 
                 // Mark welcome message as sent
                 if (guildSettings is not null)
@@ -97,13 +103,13 @@ public class MessageCreateHandler(GatewayClient gatewayClient, IServiceProvider 
                     guildSettings.HasSentWelcomeMessage = true;
                     dbContext.GuildSettings.Update(guildSettings);
                     await dbContext.SaveChangesAsync();
-                    logger.LogInformation("Marked welcome message as sent for guild {GuildId}", guild.Id);
+                    logger.LogInformation("Marked welcome message as sent for guild. Context: {@Context}", new { DiscordGuildId = guild.Id });
                 }
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send welcome message to guild {GuildId}", guild.Id);
+            logger.LogError(ex, "Failed to send welcome message to guild. Context: {@Context}", new { DiscordGuildId = guild.Id });
         }
     }
 }
