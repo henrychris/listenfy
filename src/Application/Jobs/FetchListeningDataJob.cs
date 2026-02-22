@@ -83,7 +83,7 @@ public class FetchListeningDataJob(
 
     private async Task ProcessUserListeningHistory(SpotifyUser user)
     {
-        logger.LogInformation("Processing user. Context: {@Context}", new { SpotifyUserId = user.SpotifyUserId });
+        logger.LogInformation("Processing user. Context: {@Context}", new { user.SpotifyUserId });
 
         var metadata = user.SpotifyFetchMetadata;
         if (metadata is null)
