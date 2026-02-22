@@ -121,7 +121,7 @@ public class SpotifyService(
 
     private async Task<Result<SpotifyTokenResponse>> RefreshAccessTokenPKCE(string refreshToken, string clientId)
     {
-        var response = await spotifyAccountApi.RefreshAccessToken(
+        var response = await spotifyAccountApi.RefreshAccessTokenPKCE(
             new SpotifyRefreshTokenRequest
             {
                 GrantType = "refresh_token",
@@ -164,12 +164,18 @@ public class SpotifyService(
             return Result<string>.Failure(refreshResult.Error);
         }
 
-        // spotify dont send a new refresh token. the one gotten on first auth remains unchanged
+        // For regular Auth Code flow Spotify doesn't rotate the refresh token, but for
+        // PKCE flow it does — each refresh response contains a new refresh token that
+        // must be persisted, otherwise the next refresh will fail with invalid_client.
         var tokenResponse = refreshResult.Value;
         spotifyUser.AccessToken = tokenResponse.AccessToken;
         spotifyUser.TokenExpiresAt = now.AddSeconds(tokenResponse.ExpiresIn);
-        await dbContext.SaveChangesAsync();
+        if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
+        {
+            spotifyUser.RefreshToken = tokenResponse.RefreshToken;
+        }
 
+        await dbContext.SaveChangesAsync();
         logger.LogInformation(
             "Access token refreshed for spotify user. Context: {@Context}",
             new
