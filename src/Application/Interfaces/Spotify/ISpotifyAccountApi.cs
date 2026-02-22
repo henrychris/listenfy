@@ -21,4 +21,8 @@ public interface ISpotifyAccountApi
         [Body(BodySerializationMethod.UrlEncoded)] SpotifyRefreshTokenRequest request,
         [Authorize("Basic")] string? authorization = null
     );
+
+    [Post("/api/token")]
+    [Headers("Content-Type: application/x-www-form-urlencoded")]
+    Task<ApiResponse<SpotifyTokenResponse>> RefreshAccessTokenPKCE([Body(BodySerializationMethod.UrlEncoded)] SpotifyRefreshTokenRequest request);
 }

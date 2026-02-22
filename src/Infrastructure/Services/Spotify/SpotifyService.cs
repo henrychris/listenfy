@@ -121,7 +121,7 @@ public class SpotifyService(
 
     private async Task<Result<SpotifyTokenResponse>> RefreshAccessTokenPKCE(string refreshToken, string clientId)
     {
-        var response = await spotifyAccountApi.RefreshAccessToken(
+        var response = await spotifyAccountApi.RefreshAccessTokenPKCE(
             new SpotifyRefreshTokenRequest
             {
                 GrantType = "refresh_token",
