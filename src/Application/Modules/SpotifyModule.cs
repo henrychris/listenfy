@@ -336,7 +336,7 @@ public class SpotifyModule(
 
         try
         {
-            var stats = await statsService.GetGuildLast7DaysStats(guildId.Value);
+            var stats = await statsService.GetGuildWeeklyStats(guildId.Value);
             if (stats.IsFailure)
             {
                 logger.LogError(
@@ -352,7 +352,7 @@ public class SpotifyModule(
                 return;
             }
 
-            var embed = statsService.BuildGuildStatsEmbed(stats.Value, true);
+            var embed = statsService.BuildGuildStatsEmbed(stats.Value, false);
             logger.LogInformation(
                 "Server stats generated successfully. Context: {@Context}",
                 new { GuildId = guildId.Value, DiscordUserId = userId }
