@@ -303,6 +303,7 @@ public class FetchListeningDataJob(
                 ContextType = item.Context?.Type,
                 ContextUri = item.Context?.Uri,
             })
+            .DistinctBy(history => (history.TrackId, history.PlayedAt))
             .ToList();
 
         var minPlayedAt = candidates.Min(c => c.PlayedAt);
