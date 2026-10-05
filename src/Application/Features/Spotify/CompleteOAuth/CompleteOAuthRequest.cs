@@ -89,8 +89,8 @@ public class Handler(
         logger.LogInformation("Completed OAuth flow. Context: {@Context}", new { userConnection.DiscordUserId, userConnection.Guild.DiscordGuildId });
 
         // Notify the user via Discord DM that connection was successful
-        backgroundJobClient.Enqueue(
-            () => notificationService.NotifyConnectionSuccessAsync(userConnection.DiscordUserId, userConnection.Guild.GuildName)
+        backgroundJobClient.Enqueue(() =>
+            notificationService.NotifyConnectionSuccessAsync(userConnection.DiscordUserId, userConnection.Guild.GuildName)
         );
 
         // immediately fetch listening data so stats are available faster, instead of waiting for the next scheduled job run

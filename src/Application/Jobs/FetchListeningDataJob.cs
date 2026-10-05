@@ -23,7 +23,7 @@ public class FetchListeningDataJob(
         var spotifyUsers = await dbContext
             .SpotifyUsers.Include(u => u.SpotifyFetchMetadata)
             .Include(u => u.UserConnections)
-            .ThenInclude(uc => uc.Guild)
+                .ThenInclude(uc => uc.Guild)
             .ToListAsync();
         logger.LogInformation("Found Spotify users to process. Context: {@Context}", new { NumberOfUsers = spotifyUsers.Count });
 
@@ -55,7 +55,7 @@ public class FetchListeningDataJob(
         var user = await dbContext
             .SpotifyUsers.Include(u => u.SpotifyFetchMetadata)
             .Include(u => u.UserConnections)
-            .ThenInclude(uc => uc.Guild)
+                .ThenInclude(uc => uc.Guild)
             .FirstOrDefaultAsync(u => u.Id == spotifyUserId);
         if (user is null)
         {
