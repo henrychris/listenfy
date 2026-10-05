@@ -29,6 +29,8 @@ Copy `.env.example` to `.env` and update with your values:
 cp .env.example .env
 ```
 
+Note: `SpotifySettings__RedirectUrl` must match the URL configured on the Spotify developer app & the frontend's environment variables
+
 ### Installation
 
 1. Clone the repository:
@@ -109,13 +111,13 @@ This project uses [CSharpier](https://csharpier.com/) for code formatting. To ch
 
 ```bash
 dotnet tool restore
-dotnet csharpier --check .
+dotnet csharpier check .
 ```
 
 To format code:
 
 ```bash
-dotnet csharpier .
+dotnet csharpier format .
 ```
 
 ## Contributing
@@ -130,4 +132,4 @@ Contributions are welcome! Whether it's bug fixes, new features, or documentatio
 
 - **Pull Requests**: PRs are squash merged, so ensure the PR title clearly describes the changes. The description should provide detailed context about what's being added or modified. Branch off dev when building features and use `master` as the base/target branch.
 - **Commits**: Each commit within a PR should have an informative title. Please squash trivial commits before submitting.
-- **Code Style**: Run `dotnet csharpier .` before committing to ensure code is properly formatted. The CI will check this automatically.
+- **Code Style**: Run `dotnet csharpier format .` before committing to ensure code is properly formatted. The CI will check this automatically.
